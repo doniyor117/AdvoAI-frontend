@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, startTransition } from 'react
 import { useRouter } from 'next/navigation';
 import { useSessions } from './useSessions';
 import { useAuth } from '@/contexts/AuthContext';
+import { authFetch } from '@/lib/authFetch';
 
 export type Citation = {
   id: string;
@@ -144,10 +145,9 @@ export function useChatManager(chatId?: string) {
       body.session_id = currentSessionId;
     }
 
-    const res = await fetch(`${API_URL}/api/chat/`, {
+    const res = await authFetch('/api/chat/', {
       method: 'POST',
       headers,
-      credentials: 'include',
       body: JSON.stringify(body),
     });
 

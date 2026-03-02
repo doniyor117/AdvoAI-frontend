@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { authFetch } from '@/lib/authFetch';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -55,9 +54,7 @@ export function useSessions() {
     if (!isAuthenticated || isFetchingRef.current) return;
     isFetchingRef.current = true;
     try {
-      const res = await fetch(`${API_URL}/api/sessions`, {
-        credentials: 'include',
-      });
+      const res = await authFetch('/api/sessions');
       if (res.ok) {
         const data = await res.json();
         const mapped = (data.sessions || []).map(mapServerSession);
@@ -110,10 +107,9 @@ export function useSessions() {
 
     // Auth: create on server, get UUID back
     try {
-      const res = await fetch(`${API_URL}/api/sessions`, {
+      const res = await authFetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ title: session.title }),
       });
 
@@ -144,10 +140,9 @@ export function useSessions() {
     }
 
     try {
-      await fetch(`${API_URL}/api/sessions/${id}`, {
+      await authFetch(`/api/sessions/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ title }),
       });
     } catch (err) {
@@ -169,10 +164,9 @@ export function useSessions() {
     }
 
     try {
-      await fetch(`${API_URL}/api/sessions/${id}`, {
+      await authFetch(`/api/sessions/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ toggle_pin: true }),
       });
     } catch (err) {
@@ -194,9 +188,8 @@ export function useSessions() {
     }
 
     try {
-      await fetch(`${API_URL}/api/sessions/${id}`, {
+      await authFetch(`/api/sessions/${id}`, {
         method: 'DELETE',
-        credentials: 'include',
       });
     } catch (err) {
       console.error('Failed to delete session:', err);

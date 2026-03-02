@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { authFetch, setToken, clearToken } from '@/lib/authFetch';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -47,9 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function refreshUser() {
     try {
-      const res = await fetch(`${API_URL}/api/auth/me`, {
-        credentials: 'include',
-      });
+      const res = await authFetch('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
@@ -74,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await res.json();
       if (res.ok) {
+        if (data.token) setToken(data.token);
         setUser(data.user);
         return { success: true };
       }
@@ -94,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await res.json();
       if (res.ok) {
+        if (data.token) setToken(data.token);
         setUser(data.user);
         return { success: true };
       }
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await res.json();
       if (res.ok) {
+        if (data.token) setToken(data.token);
         setUser(data.user);
         return { success: true };
       }
@@ -125,13 +127,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function logout() {
     try {
-      await fetch(`${API_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await authFetch('/api/auth/logout', { method: 'POST' });
     } catch {
       // Ignore errors on logout
     }
+    clearToken();
     setUser(null);
   }
 

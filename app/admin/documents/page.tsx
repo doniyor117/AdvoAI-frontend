@@ -15,8 +15,7 @@ import {
 import { Loader2, Plus, ExternalLink, Pencil, Trash2, Eye, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { authFetch } from '@/lib/authFetch';
 
 interface DocumentRecord {
     id: string;
@@ -59,7 +58,7 @@ export default function AdminDocumentsPage() {
 
     async function fetchDocuments() {
         try {
-            const res = await fetch(`${API_URL}/api/admin/documents`, { credentials: 'include' });
+            const res = await authFetch('/api/admin/documents');
             if (!res.ok) throw new Error('Failed to load documents');
             const data = await res.json();
             setDocuments(data.documents);
@@ -78,10 +77,9 @@ export default function AdminDocumentsPage() {
         setIngestResult('');
 
         try {
-            const res = await fetch(`${API_URL}/api/admin/ingest`, {
+            const res = await authFetch('/api/admin/ingest', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
                 body: JSON.stringify({ url: ingestUrl, device: 'cpu' }),
             });
             const data = await res.json();
@@ -102,10 +100,9 @@ export default function AdminDocumentsPage() {
     async function handleSaveTitle(docId: string) {
         if (!editTitle.trim()) return;
         try {
-            await fetch(`${API_URL}/api/admin/documents/${docId}`, {
+            await authFetch(`/api/admin/documents/${docId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
                 body: JSON.stringify({ title: editTitle }),
             });
             setDocuments(prev => prev.map(d => d.id === docId ? { ...d, title: editTitle } : d));
@@ -118,7 +115,7 @@ export default function AdminDocumentsPage() {
     async function handleViewDocument(docId: string) {
         setIsLoadingView(true);
         try {
-            const res = await fetch(`${API_URL}/api/admin/documents/${docId}`, { credentials: 'include' });
+            const res = await authFetch(`/api/admin/documents/${docId}`);
             if (res.ok) {
                 const data = await res.json();
                 setViewingDoc({
@@ -137,9 +134,8 @@ export default function AdminDocumentsPage() {
     async function handleDelete(docId: string) {
         setIsDeleting(true);
         try {
-            await fetch(`${API_URL}/api/admin/documents/${docId}`, {
+            await authFetch(`/api/admin/documents/${docId}`, {
                 method: 'DELETE',
-                credentials: 'include',
             });
             setDocuments(prev => prev.filter(d => d.id !== docId));
         } catch {

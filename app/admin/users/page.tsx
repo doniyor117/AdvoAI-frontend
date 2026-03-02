@@ -14,8 +14,7 @@ import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Loader2, MoreVertical, Shield, User, UserX, Ban, BarChart3 } from 'lucide-react';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { authFetch } from '@/lib/authFetch';
 
 interface UserRecord {
     id: string;
@@ -54,7 +53,7 @@ export default function AdminUsersPage() {
 
     async function fetchUsers() {
         try {
-            const res = await fetch(`${API_URL}/api/admin/users`, { credentials: 'include' });
+            const res = await authFetch('/api/admin/users');
             if (!res.ok) throw new Error('Failed to load users');
             const data = await res.json();
             setUsers(data.users);
@@ -67,10 +66,9 @@ export default function AdminUsersPage() {
 
     async function changeRole(userId: string, newRole: string) {
         try {
-            const res = await fetch(`${API_URL}/api/admin/users/${userId}/role`, {
+            const res = await authFetch(`/api/admin/users/${userId}/role`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
                 body: JSON.stringify({ role: newRole }),
             });
             if (!res.ok) throw new Error('Failed to update role');
@@ -82,9 +80,8 @@ export default function AdminUsersPage() {
 
     async function toggleBan(userId: string) {
         try {
-            const res = await fetch(`${API_URL}/api/admin/users/${userId}/ban`, {
+            const res = await authFetch(`/api/admin/users/${userId}/ban`, {
                 method: 'PATCH',
-                credentials: 'include',
             });
             if (res.ok) {
                 const data = await res.json();
@@ -100,7 +97,7 @@ export default function AdminUsersPage() {
         setIsLoadingStats(true);
         setUserStats(null);
         try {
-            const res = await fetch(`${API_URL}/api/admin/users/${user.id}/stats`, { credentials: 'include' });
+            const res = await authFetch(`/api/admin/users/${user.id}/stats`);
             if (res.ok) {
                 const data = await res.json();
                 setUserStats(data.stats);

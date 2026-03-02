@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Users, FileText, MessageSquare, Activity, Loader2, Save, Settings } from 'lucide-react';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { authFetch } from '@/lib/authFetch';
 
 interface Stats {
     total_users: number;
@@ -43,7 +42,7 @@ export default function AdminDashboard() {
 
     async function fetchStats() {
         try {
-            const res = await fetch(`${API_URL}/api/admin/stats`, { credentials: 'include' });
+            const res = await authFetch('/api/admin/stats');
             if (!res.ok) throw new Error('Failed to load stats');
             const data = await res.json();
             setStats(data.stats);
@@ -54,7 +53,7 @@ export default function AdminDashboard() {
 
     async function fetchSettings() {
         try {
-            const res = await fetch(`${API_URL}/api/admin/settings`, { credentials: 'include' });
+            const res = await authFetch('/api/admin/settings');
             if (!res.ok) return; // Settings table may not exist yet
             const data = await res.json();
             setSettings({
@@ -72,10 +71,9 @@ export default function AdminDashboard() {
         setIsSavingSettings(true);
         setSettingsSaved(false);
         try {
-            const res = await fetch(`${API_URL}/api/admin/settings`, {
+            const res = await authFetch('/api/admin/settings', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
                 body: JSON.stringify({
                     current_llm_model: settings.current_llm_model,
                     guest_message_limit: parseInt(settings.guest_message_limit),

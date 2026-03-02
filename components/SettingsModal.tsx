@@ -6,6 +6,7 @@ import { X, Monitor, Moon, Sun, Loader2, Check } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { authFetch } from '@/lib/authFetch';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -42,10 +43,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
     setSaveState('saving');
     try {
-      const res = await fetch(`${API_URL}/api/auth/me`, {
+      const res = await authFetch('/api/auth/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ full_name: fullName.trim() }),
       });
 
@@ -107,8 +107,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
                     className={`flex-shrink-0 md:w-full text-left px-4 md:px-3 py-2 rounded-lg font-medium text-sm transition-colors ${activeTab === tab.key
-                        ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-[#E6EDF3]'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-[#E6EDF3]'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                       }`}
                   >
                     {tab.label}
@@ -135,8 +135,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             key={key}
                             onClick={() => setTheme(key)}
                             className={`flex flex-col items-center justify-center p-3 md:p-4 rounded-xl border-2 transition-all ${theme === key
-                                ? 'border-primary dark:border-[#1F6FEB] bg-primary/5 dark:bg-[#1F6FEB]/10 text-primary dark:text-[#1F6FEB]'
-                                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-400'
+                              ? 'border-primary dark:border-[#1F6FEB] bg-primary/5 dark:bg-[#1F6FEB]/10 text-primary dark:text-[#1F6FEB]'
+                              : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-400'
                               }`}
                           >
                             <Icon className="w-5 h-5 md:w-6 md:h-6 mb-1.5 md:mb-2" />
@@ -194,10 +194,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             type="submit"
                             disabled={saveState === 'saving' || !fullName.trim() || fullName.trim() === (user.full_name || '')}
                             className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${saveState === 'saved'
-                                ? 'bg-emerald-500 text-white'
-                                : saveState === 'error'
-                                  ? 'bg-red-500 text-white'
-                                  : 'bg-primary dark:bg-[#1F6FEB] text-white hover:bg-primary/90 dark:hover:bg-[#1F6FEB]/90'
+                              ? 'bg-emerald-500 text-white'
+                              : saveState === 'error'
+                                ? 'bg-red-500 text-white'
+                                : 'bg-primary dark:bg-[#1F6FEB] text-white hover:bg-primary/90 dark:hover:bg-[#1F6FEB]/90'
                               }`}
                           >
                             {saveState === 'saving' && <Loader2 className="w-4 h-4 animate-spin" />}
