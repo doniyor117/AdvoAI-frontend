@@ -1,0 +1,350 @@
+{
+  "en": {
+    "chatbot_name": "Yurika",
+    "chat": {
+      "welcome_messages_generic": [
+        "What's on your plan today?",
+        "Where should we start?",
+        "How can I help you today?",
+        "Ready to explore some legal topics?"
+      ],
+      "welcome_messages_named": [
+        "Where should we start, {name}?",
+        "How can I help you today, {name}?",
+        "Hey there, {name}!",
+        "How's it going, {name}?"
+      ],
+      "welcome_messages_morning": [
+        "Good morning, {name}!",
+        "Good morning! Ready to get started?"
+      ],
+      "welcome_messages_evening": [
+        "Good evening, {name}!",
+        "Evening, {name}!"
+      ],
+      "welcome_messages_night": [
+        "What's on your mind tonight?",
+        "Good evening, night owl!",
+        "Burning the midnight oil, {name}?"
+      ],
+      "welcome_messages_returning": [
+        "Back at it, {name}!",
+        "Welcome back, {name}!"
+      ],
+      "marquee_items_row1": [
+        {
+          "text": "What are my rights when getting fired?",
+          "icon": null
+        },
+        {
+          "text": "Create a rental agreement.",
+          "icon": "FileText",
+          "iconColor": "text-amber-500"
+        },
+        {
+          "text": "Steps to start a business.",
+          "icon": "TrendingUp",
+          "iconColor": "text-red-500"
+        },
+        {
+          "text": "Legal tips before signing documents.",
+          "icon": "Key",
+          "iconColor": "text-yellow-600"
+        }
+      ],
+      "marquee_items_row2": [
+        {
+          "text": "Legal checklist before marriage.",
+          "icon": "ClipboardList",
+          "iconColor": "text-pink-500"
+        },
+        {
+          "text": "How to file a consumer complaint?",
+          "icon": "HelpCircle",
+          "iconColor": "text-emerald-500"
+        },
+        {
+          "text": "Duties of an accountant.",
+          "icon": "Calculator",
+          "iconColor": "text-yellow-500"
+        },
+        {
+          "text": "What is the penalty for tax evasion?",
+          "icon": "Scale",
+          "iconColor": "text-blue-500"
+        }
+      ],
+      "input_placeholder": "Ask anything",
+      "new_consultation": "New Consultation",
+      "current_consultation": "Current Consultation",
+      "processing": "{chatbot_name} is processing...",
+      "unlock_pro": "Unlock all the benefits of top AI — all in one place.",
+      "activate_pro": "Activate Pro.",
+      "cite": "Cite",
+      "footer_disclaimer": "{chatbot_name} is AI and can make mistakes. Check important info."
+    },
+    "sidebar": {
+      "new_consultation": "New Consultation",
+      "search_past_sessions": "Search past sessions...",
+      "recent_sessions": "Recent Sessions",
+      "pinned_sessions": "Pinned",
+      "agreement_summary": "Agreement summary",
+      "compare_agreements": "Compare agreements",
+      "create_agreement": "Create agreement",
+      "profile": "Profile",
+      "settings": "Settings",
+      "billing": "Billing",
+      "log_out": "Log out",
+      "mock_session_1": "Contract under threat",
+      "mock_session_2": "Property Dispute",
+      "mock_session_3": "Labor Contract Penalty"
+    },
+    "settings": {
+      "title": "Settings",
+      "general": "General",
+      "account": "Account",
+      "theme": "Theme",
+      "full_name": "Full Name",
+      "email": "Email",
+      "save_changes": "Save Changes",
+      "saving": "Saving...",
+      "saved": "Saved!",
+      "save_error": "Failed to save. Please try again."
+    },
+    "insight": {
+      "view_on_lex": "View on Lex.uz"
+    }
+  },
+  "uz": {
+    "chatbot_name": "Yurika",
+    "chat": {
+      "welcome_messages_generic": [
+        "Bugun rejangizda nima bor?",
+        "Nimadan boshlaymiz?",
+        "Bugun sizga qanday yordam bera olaman?",
+        "Huquqiy mavzularni o'rganishga tayyormisiz?"
+      ],
+      "welcome_messages_named": [
+        "Nimadan boshlaymiz, {name}?",
+        "Bugun sizga qanday yordam bera olaman, {name}?",
+        "Salom, {name}!",
+        "Qanday ahvolingiz, {name}?"
+      ],
+      "welcome_messages_morning": [
+        "Xayrli tong, {name}!",
+        "Xayrli tong! Boshlashga tayyormisiz?"
+      ],
+      "welcome_messages_evening": [
+        "Xayrli kech, {name}!",
+        "Kech, {name}!"
+      ],
+      "welcome_messages_night": [
+        "Bugun kechqurun nima o'ylayapsiz?",
+        "Xayrli kech, tungi boyqush!",
+        "Yarim tunda ishlayapsizmi, {name}?"
+      ],
+      "welcome_messages_returning": [
+        "Yana keldingiz, {name}!",
+        "Xush kelibsiz, {name}!"
+      ],
+      "marquee_items_row1": [
+        {
+          "text": "Ishdan bo'shatilganda qanday huquqlarim bor?",
+          "icon": null
+        },
+        {
+          "text": "Ijara shartnomasini tuzish.",
+          "icon": "FileText",
+          "iconColor": "text-amber-500"
+        },
+        {
+          "text": "Biznes boshlash qadamlari.",
+          "icon": "TrendingUp",
+          "iconColor": "text-red-500"
+        },
+        {
+          "text": "Hujjat imzolashdan oldin huquqiy maslahatlar.",
+          "icon": "Key",
+          "iconColor": "text-yellow-600"
+        }
+      ],
+      "marquee_items_row2": [
+        {
+          "text": "Turmush qurishdan oldin huquqiy ro'yxat.",
+          "icon": "ClipboardList",
+          "iconColor": "text-pink-500"
+        },
+        {
+          "text": "Iste'molchi shikoyatini qanday berish kerak?",
+          "icon": "HelpCircle",
+          "iconColor": "text-emerald-500"
+        },
+        {
+          "text": "Buxgalterning vazifalari.",
+          "icon": "Calculator",
+          "iconColor": "text-yellow-500"
+        },
+        {
+          "text": "Soliq to'lashdan bo'yin tovlaganlik uchun qanday jazo bor?",
+          "icon": "Scale",
+          "iconColor": "text-blue-500"
+        }
+      ],
+      "input_placeholder": "Istalgan narsani so'rang",
+      "new_consultation": "Yangi konsultatsiya",
+      "current_consultation": "Joriy konsultatsiya",
+      "processing": "{chatbot_name} ishlamoqda...",
+      "unlock_pro": "Eng yaxshi sun'iy intellektning barcha afzalliklarini oching — barchasi bir joyda.",
+      "activate_pro": "Pro-ni faollashtirish.",
+      "cite": "Manba",
+      "footer_disclaimer": "{chatbot_name} sun'iy intellekt va xato qilishi mumkin. Muhim ma'lumotlarni tekshiring."
+    },
+    "sidebar": {
+      "new_consultation": "Yangi konsultatsiya",
+      "search_past_sessions": "O'tgan seanslarni qidirish...",
+      "recent_sessions": "So'nggi seanslar",
+      "pinned_sessions": "Mahkamlangan",
+      "agreement_summary": "Shartnoma xulosasi",
+      "compare_agreements": "Shartnomalarni taqqoslash",
+      "create_agreement": "Shartnoma yaratish",
+      "profile": "Profil",
+      "settings": "Sozlamalar",
+      "billing": "To'lov",
+      "log_out": "Chiqish",
+      "mock_session_1": "Shartnoma xavf ostida",
+      "mock_session_2": "Mulk nizosi",
+      "mock_session_3": "Mehnat shartnomasi jarimasi"
+    },
+    "settings": {
+      "title": "Sozlamalar",
+      "general": "Umumiy",
+      "account": "Hisob",
+      "theme": "Mavzu",
+      "full_name": "To'liq ism",
+      "email": "Elektron pochta",
+      "save_changes": "O'zgarishlarni saqlash",
+      "saving": "Saqlanmoqda...",
+      "saved": "Saqlandi!",
+      "save_error": "Saqlab bo'lmadi. Qaytadan urinib ko'ring."
+    },
+    "insight": {
+      "view_on_lex": "Lex.uz da ko'rish"
+    }
+  },
+  "ru": {
+    "chatbot_name": "Юрика",
+    "chat": {
+      "welcome_messages_generic": [
+        "Какие у вас планы на сегодня?",
+        "С чего начнем?",
+        "Чем могу помочь сегодня?",
+        "Готовы изучить некоторые правовые темы?"
+      ],
+      "welcome_messages_named": [
+        "С чего начнем, {name}?",
+        "Чем могу помочь сегодня, {name}?",
+        "Привет, {name}!",
+        "Как дела, {name}?"
+      ],
+      "welcome_messages_morning": [
+        "Доброе утро, {name}!",
+        "Доброе утро! Готовы начать?"
+      ],
+      "welcome_messages_evening": [
+        "Добрый вечер, {name}!",
+        "Вечер, {name}!"
+      ],
+      "welcome_messages_night": [
+        "О чём думаете сегодня ночью?",
+        "Добрый вечер, ночная птица!",
+        "Работаете за полночь, {name}?"
+      ],
+      "welcome_messages_returning": [
+        "Снова за работу, {name}!",
+        "С возвращением, {name}!"
+      ],
+      "marquee_items_row1": [
+        {
+          "text": "Каковы мои права при увольнении?",
+          "icon": null
+        },
+        {
+          "text": "Создать договор аренды.",
+          "icon": "FileText",
+          "iconColor": "text-amber-500"
+        },
+        {
+          "text": "Шаги для начала бизнеса.",
+          "icon": "TrendingUp",
+          "iconColor": "text-red-500"
+        },
+        {
+          "text": "Юридические советы перед подписанием документов.",
+          "icon": "Key",
+          "iconColor": "text-yellow-600"
+        }
+      ],
+      "marquee_items_row2": [
+        {
+          "text": "Юридический чек-лист перед браком.",
+          "icon": "ClipboardList",
+          "iconColor": "text-pink-500"
+        },
+        {
+          "text": "Как подать жалобу потребителя?",
+          "icon": "HelpCircle",
+          "iconColor": "text-emerald-500"
+        },
+        {
+          "text": "Обязанности бухгалтера.",
+          "icon": "Calculator",
+          "iconColor": "text-yellow-500"
+        },
+        {
+          "text": "Какое наказание за уклонение от уплаты налогов?",
+          "icon": "Scale",
+          "iconColor": "text-blue-500"
+        }
+      ],
+      "input_placeholder": "Спросите что угодно",
+      "new_consultation": "Новая консультация",
+      "current_consultation": "Текущая консультация",
+      "processing": "{chatbot_name} обрабатывает...",
+      "unlock_pro": "Откройте все преимущества лучшего ИИ — все в одном месте.",
+      "activate_pro": "Активировать Pro.",
+      "cite": "Источник",
+      "footer_disclaimer": "{chatbot_name} — это ИИ и может ошибаться. Проверяйте важную информацию."
+    },
+    "sidebar": {
+      "new_consultation": "Новая консультация",
+      "search_past_sessions": "Поиск прошлых сеансов...",
+      "recent_sessions": "Последние сеансы",
+      "pinned_sessions": "Закреплённые",
+      "agreement_summary": "Резюме договора",
+      "compare_agreements": "Сравнить договоры",
+      "create_agreement": "Создать договор",
+      "profile": "Профиль",
+      "settings": "Настройки",
+      "billing": "Оплата",
+      "log_out": "Выйти",
+      "mock_session_1": "Договор под угрозой",
+      "mock_session_2": "Имущественный спор",
+      "mock_session_3": "Штраф по трудовому договору"
+    },
+    "settings": {
+      "title": "Настройки",
+      "general": "Общие",
+      "account": "Аккаунт",
+      "theme": "Тема",
+      "full_name": "Полное имя",
+      "email": "Электронная почта",
+      "save_changes": "Сохранить изменения",
+      "saving": "Сохранение...",
+      "saved": "Сохранено!",
+      "save_error": "Не удалось сохранить. Попробуйте ещё раз."
+    },
+    "insight": {
+      "view_on_lex": "Смотреть на Lex.uz"
+    }
+  }
+}
