@@ -18,8 +18,6 @@ export type Message = {
   citations?: Citation[];
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
 // ── Fingerprint (simple hash for guest tracking) ────────────
 function generateId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

@@ -28,10 +28,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ── API Base ────────────────────────────────────────────────
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
 // ── Provider ────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -64,10 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
+      const res = await authFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
 
@@ -78,17 +73,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       }
       return { success: false, error: data.detail || 'Login failed.' };
-    } catch {
-      return { success: false, error: 'Network error. Please try again.' };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[Login] Network error:', msg);
+      return { success: false, error: `Network error: ${msg}` };
     }
   }
 
   async function signup(email: string, password: string, fullName: string) {
     try {
-      const res = await fetch(`${API_URL}/api/auth/register`, {
+      const res = await authFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ email, password, full_name: fullName }),
       });
 
@@ -99,17 +95,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       }
       return { success: false, error: data.detail || 'Registration failed.' };
-    } catch {
-      return { success: false, error: 'Network error. Please try again.' };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[Register] Network error:', msg);
+      return { success: false, error: `Network error: ${msg}` };
     }
   }
 
   async function loginWithGoogle(credential: string) {
     try {
-      const res = await fetch(`${API_URL}/api/auth/google`, {
+      const res = await authFetch('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ credential }),
       });
 
@@ -120,8 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       }
       return { success: false, error: data.detail || 'Google sign-in failed.' };
-    } catch {
-      return { success: false, error: 'Network error. Please try again.' };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[GoogleAuth] Network error:', msg);
+      return { success: false, error: `Network error: ${msg}` };
     }
   }
 
