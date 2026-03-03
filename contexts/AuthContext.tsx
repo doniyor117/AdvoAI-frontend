@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { authFetch, setToken, clearToken } from '@/lib/authFetch';
+import { authFetch, safeJson, setToken, clearToken } from '@/lib/authFetch';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -46,8 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await authFetch('/api/auth/me');
       if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
+        const data = await safeJson(res);
+        setUser(data.user as User);
       } else {
         setUser(null);
       }
@@ -66,17 +66,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const data = await safeJson(res);
       if (res.ok) {
-        if (data.token) setToken(data.token);
-        setUser(data.user);
+        if (data.token) setToken(data.token as string);
+        setUser(data.user as User);
         return { success: true };
       }
-      return { success: false, error: data.detail || 'Login failed.' };
+      return { success: false, error: (data.detail as string) || 'Login failed.' };
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      console.error('[Login] Network error:', msg);
-      return { success: false, error: `Network error: ${msg}` };
+      console.error('[Login] Error:', msg);
+      return { success: false, error: msg };
     }
   }
 
@@ -88,17 +88,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password, full_name: fullName }),
       });
 
-      const data = await res.json();
+      const data = await safeJson(res);
       if (res.ok) {
-        if (data.token) setToken(data.token);
-        setUser(data.user);
+        if (data.token) setToken(data.token as string);
+        setUser(data.user as User);
         return { success: true };
       }
-      return { success: false, error: data.detail || 'Registration failed.' };
+      return { success: false, error: (data.detail as string) || 'Registration failed.' };
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      console.error('[Register] Network error:', msg);
-      return { success: false, error: `Network error: ${msg}` };
+      console.error('[Register] Error:', msg);
+      return { success: false, error: msg };
     }
   }
 
@@ -110,17 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ credential }),
       });
 
-      const data = await res.json();
+      const data = await safeJson(res);
       if (res.ok) {
-        if (data.token) setToken(data.token);
-        setUser(data.user);
+        if (data.token) setToken(data.token as string);
+        setUser(data.user as User);
         return { success: true };
       }
-      return { success: false, error: data.detail || 'Google sign-in failed.' };
+      return { success: false, error: (data.detail as string) || 'Google sign-in failed.' };
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      console.error('[GoogleAuth] Network error:', msg);
-      return { success: false, error: `Network error: ${msg}` };
+      console.error('[GoogleAuth] Error:', msg);
+      return { success: false, error: msg };
     }
   }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { authFetch } from '@/lib/authFetch';
+import { authFetch, safeJson } from '@/lib/authFetch';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -56,7 +56,7 @@ export function useSessions() {
     try {
       const res = await authFetch('/api/sessions');
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         const mapped = (data.sessions || []).map(mapServerSession);
         setSessions(mapped);
       }
@@ -114,7 +114,7 @@ export function useSessions() {
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJson(res);
         const serverSession = mapServerSession(data.session);
         setSessions(prev => [serverSession, ...prev]);
         return serverSession;

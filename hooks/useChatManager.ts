@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, startTransition } from 'react
 import { useRouter } from 'next/navigation';
 import { useSessions } from './useSessions';
 import { useAuth } from '@/contexts/AuthContext';
-import { authFetch } from '@/lib/authFetch';
+import { authFetch, safeJson } from '@/lib/authFetch';
 
 export type Citation = {
   id: string;
@@ -150,11 +150,11 @@ export function useChatManager(chatId?: string) {
     });
 
     if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
+      const errData = await safeJson(res).catch(() => ({}));
       throw new Error(errData.detail || `Request failed (${res.status})`);
     }
 
-    const data = await res.json();
+    const data = await safeJson(res);
 
     // Map backend citations (parent documents) to frontend Citation type
     const citations: Citation[] = (data.citations || []).map((c: Record<string, unknown>) => ({
