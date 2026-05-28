@@ -11,11 +11,23 @@ export type Citation = {
   source_url?: string;
 };
 
+export type FileAttachment = {
+  uri?: string; // Optional during upload
+  mime_type: string;
+  name?: string; // Optional during upload
+  display_name: string;
+  local_url?: string;
+  is_uploading?: boolean;
+  error?: string;
+  file?: File; // Store original file temporarily
+};
+
 export type Message = {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   citations?: Citation[];
+  attachments?: FileAttachment[];
   isError?: boolean;
 };
 
@@ -48,11 +60,13 @@ let cachedSidebarState: boolean | null = null;
 export function useChatManager(chatId?: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
+  const [activeAttachment, setActiveAttachment] = useState<FileAttachment | null>(null);
   const [isInsightOpen, setIsInsightOpen] = useState(false);
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
-  const [activeFeature, setActiveFeature] = useState<'chat' | 'agreement_summary'>('chat');
+  const [activeFeature, setActiveFeature] = useState<'chat' | 'agreement_summary' | 'compare_contracts' | 'create_contract'>('chat');
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -148,6 +162,7 @@ export function useChatManager(chatId?: string) {
   const sendToBackend = useCallback(async (
     question: string,
     currentSessionId: string | null,
+    filesToAttach: FileAttachment[] = [],
   ): Promise<{
     answer: string;
     citations: Citation[];
@@ -164,6 +179,15 @@ export function useChatManager(chatId?: string) {
       question,
       top_k: 5,
     };
+
+    if (filesToAttach.length > 0) {
+      body.attachments = filesToAttach.map(f => ({
+        uri: f.uri,
+        mime_type: f.mime_type,
+        name: f.name,
+        display_name: f.display_name,
+      }));
+    }
 
     if (currentSessionId) {
       body.session_id = currentSessionId;
@@ -199,13 +223,21 @@ export function useChatManager(chatId?: string) {
   }, []);
 
   const handleSendMessage = useCallback((text: string) => {
-    if (!text.trim() || isNavigatingRef.current || isLoading) return;
-
     const trimmed = text.trim();
+    if ((!trimmed && attachments.length === 0) || isNavigatingRef.current || isLoading) return;
+    
+    // Check if we are still uploading
+    if (attachments.some(a => a.is_uploading)) {
+      return;
+    }
+
+    const currentAttachments = [...attachments];
+
     const newUserMsg: Message = {
       id: generateId(),
       role: 'user',
       text: trimmed,
+      attachments: currentAttachments,
     };
 
     let currentChatId = chatId;
@@ -214,16 +246,22 @@ export function useChatManager(chatId?: string) {
     if (!currentChatId) {
       isNavigatingRef.current = true;
 
-      const tempTitle = trimmed.substring(0, 30) + (trimmed.length > 30 ? '...' : '');
+      const tempTitle = trimmed ? (trimmed.substring(0, 30) + (trimmed.length > 30 ? '...' : '')) : 'File Upload';
 
       // Create session (async for auth users → server UUID, sync for guests → timestamp)
       const guestFallbackId = generateId();
 
       // Optimistic: prepare for navigation
       setInputValue('');
+      setAttachments([]);
 
       // Store pending question for after redirect
       localStorage.setItem('advoai_pending_question', trimmed);
+      if (currentAttachments.length > 0) {
+        // Can't reliably pass files through localstorage across redirects because of Object URLs and Blobs.
+        // We'll stringify the finalized attachments (which have URIs)
+        localStorage.setItem('advoai_pending_attachments', JSON.stringify(currentAttachments));
+      }
 
       (async () => {
         try {
@@ -259,9 +297,10 @@ export function useChatManager(chatId?: string) {
     // ── Existing chat flow ───────────────────────────────────
     setMessages(prev => [...prev, newUserMsg]);
     setInputValue('');
+    setAttachments([]);
     setIsLoading(true);
 
-    sendToBackend(trimmed, sessionId)
+    sendToBackend(trimmed, sessionId, currentAttachments)
       .then(result => {
         if (result.session_id && currentChatId) {
           setSessionId(result.session_id);
@@ -291,7 +330,7 @@ export function useChatManager(chatId?: string) {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [chatId, isLoading, sessionId, isAuthenticated, addSession, router, sendToBackend]);
+  }, [chatId, isLoading, sessionId, isAuthenticated, addSession, router, sendToBackend, attachments]);
 
   // Handle pending question after redirect (new chat flow)
   useEffect(() => {
@@ -299,17 +338,24 @@ export function useChatManager(chatId?: string) {
 
     const pendingQuestion = localStorage.getItem('advoai_pending_question');
     const pendingChatId = localStorage.getItem('advoai_pending_chat_id');
+    const pendingAttachmentsRaw = localStorage.getItem('advoai_pending_attachments');
+    
+    let pendingAttachments: FileAttachment[] = [];
+    if (pendingAttachmentsRaw) {
+      try { pendingAttachments = JSON.parse(pendingAttachmentsRaw); } catch(e) {}
+    }
 
     if (pendingQuestion && pendingChatId === chatId) {
       pendingProcessed.current = true;
       localStorage.removeItem('advoai_pending_question');
       localStorage.removeItem('advoai_pending_chat_id');
+      localStorage.removeItem('advoai_pending_attachments');
 
       // For auth users, the chatId is the server session UUID
       const backendSessionId = isAuthenticated ? chatId : null;
 
       setIsLoading(true);
-      sendToBackend(pendingQuestion, backendSessionId)
+      sendToBackend(pendingQuestion, backendSessionId, pendingAttachments)
         .then(result => {
           if (result.session_id) {
             setSessionId(result.session_id);
@@ -343,23 +389,206 @@ export function useChatManager(chatId?: string) {
 
   const handleCitationClick = useCallback((citation: Citation) => {
     setActiveCitation(citation);
+    setActiveAttachment(null);
     setIsInsightOpen(true);
   }, []);
 
-  const closeInsightPanel = () => {
+  const handleAttachmentClick = useCallback((attachment: FileAttachment) => {
+    setActiveAttachment(attachment);
+    setActiveCitation(null);
+    if (!attachment.mime_type.startsWith('image/')) {
+      setIsInsightOpen(true);
+    }
+  }, []);
+
+  const closeInsightPanel = useCallback(() => {
     setIsInsightOpen(false);
-  };
+    setTimeout(() => {
+      setActiveCitation(null);
+      setActiveAttachment(null);
+    }, 300); // Wait for exit animation
+  }, []);
+
+  const handleSetIsSidebarOpen = useCallback((open: boolean) => {
+    setIsSidebarOpen(open);
+    if (open) {
+      setIsInsightOpen(false);
+    }
+  }, []);
+
+// ── Allowed file types (mirrors backend whitelist) ────────────────────────
+// These must stay in sync with SUPPORTED_MIME_TYPES in app/routes/chat.py
+const ALLOWED_MIME_TYPES = new Set([
+  // Documents
+  'application/pdf',
+  'text/plain',
+  'text/markdown',
+  'text/csv',
+  'text/html',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/rtf',
+  'text/rtf',
+  // Images
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+]);
+
+const ALLOWED_EXTENSIONS = new Set([
+  '.pdf', '.txt', '.md', '.csv', '.html', '.htm',
+  '.doc', '.docx', '.rtf',
+  '.png', '.jpg', '.jpeg', '.webp', '.gif',
+]);
+
+const REJECTION_HINTS: Record<string, string> = {
+  'video/': 'Videos are not supported.',
+  'audio/': 'Audio files are not supported.',
+  'application/vnd.ms-excel': 'Excel files are not supported. Please export as CSV.',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml': 'Excel files are not supported. Please export as CSV.',
+  'application/zip': 'ZIP archives are not supported. Please upload individual files.',
+  '.zip': 'ZIP archives are not supported.',
+  '.xlsx': 'Excel files are not supported. Please export as CSV.',
+  '.xls': 'Excel files are not supported. Please export as CSV.',
+  '.mp4': 'Videos are not supported.',
+  '.mov': 'Videos are not supported.',
+  '.mp3': 'Audio files are not supported.',
+};
+
+function getFileValidationError(file: File): string | null {
+  const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+  const mime = (file.type || '').toLowerCase();
+
+  // Check extension-based rejection hints first (most user-friendly)
+  if (REJECTION_HINTS[ext]) return REJECTION_HINTS[ext];
+
+  // Check MIME-based rejection hints
+  for (const [prefix, hint] of Object.entries(REJECTION_HINTS)) {
+    if (mime.startsWith(prefix)) return hint;
+  }
+
+  // Check whitelist
+  const mimeOk = mime && ALLOWED_MIME_TYPES.has(mime.split(';')[0].trim());
+  const extOk = ALLOWED_EXTENSIONS.has(ext);
+  if (!mimeOk && !extOk) {
+    return `'${file.name}' is not a supported file type. Accepted: PDF, DOCX, DOC, TXT, MD, CSV, RTF, HTML, and images (PNG, JPEG, WebP, GIF).`;
+  }
+
+  return null; // File is valid
+}
+
+  const uploadFile = useCallback(async (file: File) => {
+    const MAX_MB = 10;
+    
+    // Client-side validation — instant feedback, no server round-trip
+    const validationError = getFileValidationError(file);
+    if (validationError) {
+      const tempId = generateId();
+      setAttachments(prev => [...prev, {
+        display_name: file.name,
+        mime_type: file.type,
+        is_uploading: false,
+        name: tempId,
+        error: validationError,
+      }]);
+      return;
+    }
+
+    if (file.size > MAX_MB * 1024 * 1024) {
+      const tempId = generateId();
+      setAttachments(prev => [...prev, {
+        display_name: file.name,
+        mime_type: file.type,
+        is_uploading: false,
+        name: tempId,
+        error: `File is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed size is ${MAX_MB}MB.`,
+      }]);
+      return;
+    }
+
+    const local_url = URL.createObjectURL(file);
+    const tempId = generateId();
+    
+    setAttachments(prev => [...prev, {
+      display_name: file.name,
+      mime_type: file.type,
+      local_url,
+      is_uploading: true,
+      name: tempId, // temp id
+    }]);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      // NOTE: We need the full URL since authFetch handles authorization
+      // Wait, authFetch adds the headers. We MUST NOT set Content-Type so the browser sets the boundary automatically.
+      const headers = new Headers();
+      headers.append('X-Fingerprint', getFingerprint());
+      
+      const token = localStorage.getItem('advoai_token');
+      if (token) {
+        headers.append('Authorization', `Bearer ${token}`);
+      }
+
+      const res = await authFetch('/api/chat/upload', {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errData = await safeJson(res).catch(() => ({}));
+        throw new Error(errData.detail || 'Upload failed');
+      }
+
+      const data = await safeJson(res);
+      
+      setAttachments(prev => prev.map(a => a.name === tempId ? {
+        ...a,
+        uri: data.uri,
+        mime_type: data.mime_type,
+        name: data.name,
+        display_name: data.display_name,
+        is_uploading: false,
+      } : a));
+    } catch (err: any) {
+      setAttachments(prev => prev.map(a => a.name === tempId ? {
+        ...a,
+        is_uploading: false,
+        error: err.message,
+      } : a));
+    }
+  }, []);
+
+  const removeAttachment = useCallback((index: number) => {
+    setAttachments(prev => {
+      const copy = [...prev];
+      const removed = copy.splice(index, 1)[0];
+      if (removed && removed.local_url) {
+        URL.revokeObjectURL(removed.local_url);
+      }
+      return copy;
+    });
+  }, []);
 
   return {
     messages,
     setMessages,
     inputValue,
     setInputValue,
+    attachments,
+    uploadFile,
+    removeAttachment,
     isInsightOpen,
     activeCitation,
+    activeAttachment,
+    setActiveAttachment,
+    handleAttachmentClick,
     isLoading,
     isSidebarOpen,
-    setIsSidebarOpen,
+    setIsSidebarOpen: handleSetIsSidebarOpen,
     handleSendMessage,
     handleCitationClick,
     closeInsightPanel,

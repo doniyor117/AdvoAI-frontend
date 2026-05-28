@@ -3,17 +3,18 @@
 import React, { useState, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, ChevronRight, Copy, ThumbsUp, ThumbsDown, Share2, Check } from 'lucide-react';
+import { FileText, ChevronRight, Copy, ThumbsUp, ThumbsDown, Share2, Check, Image as ImageIcon } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Message, Citation } from '@/hooks/useChatManager';
+import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface MessageBubbleProps {
   message: Message;
   onCitationClick: (citation: Citation) => void;
+  onAttachmentClick?: (attachment: FileAttachment) => void;
 }
 
-export const MessageBubble = memo(function MessageBubble({ message, onCitationClick }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ message, onCitationClick, onAttachmentClick }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [isCopied, setIsCopied] = useState(false);
   const { t } = useLanguage();
@@ -37,10 +38,31 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
       className={`flex flex-col w-full border-b border-slate-100 dark:border-white/5 py-6 last:border-b-0 ${isUser ? 'items-end' : 'items-start'}`}
     >
       <div className={`${isUser
-          ? 'w-fit max-w-[85%] md:max-w-2xl bg-slate-200 dark:bg-white/10 rounded-2xl px-4 py-2.5 md:px-5 md:py-3 text-slate-900 dark:text-white'
-          : 'w-full bg-transparent py-2 px-4 md:px-5'
+          ? 'w-fit max-w-[85%] md:max-w-2xl bg-secondary text-secondary-foreground rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm'
+          : 'w-full bg-transparent py-4 px-6 md:px-8 md:py-8'
         }`}>
-        <div className={`prose prose-sm md:prose-base max-w-none break-words leading-relaxed ${isUser ? 'prose-slate dark:prose-invert prose-p:my-0 prose-headings:my-0' : 'prose-slate dark:prose-invert font-serif'}`}>
+        
+        {isUser && message.attachments && message.attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {message.attachments.map((file, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => onAttachmentClick && onAttachmentClick(file)}
+                className="flex items-center gap-2 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors border border-black/10 dark:border-white/10 rounded-xl p-2 pr-4 w-fit shadow-sm text-left"
+              >
+                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  {(file.mime_type || '').startsWith('image/') ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                </div>
+                <div className="flex flex-col max-w-[120px]">
+                  <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">{file.display_name}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className={`prose max-w-none break-words ${isUser ? 'prose-sm md:prose-base prose-slate dark:prose-invert prose-p:my-0 prose-headings:my-0 font-sans font-medium text-slate-700 dark:text-slate-200' : 'prose-slate dark:prose-invert font-serif text-base md:text-lg leading-[1.7] prose-p:mb-6 prose-ul:mb-6 prose-ol:mb-6'}`}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.text}
           </ReactMarkdown>
@@ -52,7 +74,7 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
               <button
                 key={`${cit.id}-${index}`}
                 onClick={() => onCitationClick(cit)}
-                className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200 dark:border-blue-700/50 text-blue-800 dark:text-blue-300 text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors"
+                className="flex items-center gap-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/20 text-accent font-medium text-xs px-2.5 py-1.5 rounded-md transition-colors shadow-sm"
               >
                 <FileText className="w-3.5 h-3.5" />
                 {t('chat.cite')}: {cit.title.split(',')[1]?.trim() || cit.title}

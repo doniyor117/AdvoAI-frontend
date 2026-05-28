@@ -18,8 +18,13 @@ interface Stats {
 
 interface SystemSettings {
     current_llm_model: string;
+    current_router_model: string;
     guest_message_limit: string;
     free_daily_limit: string;
+    free_daily_doc_limit: string;
+    free_daily_image_limit: string;
+    guest_doc_limit: string;
+    guest_image_limit: string;
 }
 
 export default function AdminDashboard() {
@@ -30,8 +35,13 @@ export default function AdminDashboard() {
     // Settings
     const [settings, setSettings] = useState<SystemSettings>({
         current_llm_model: '',
+        current_router_model: '',
         guest_message_limit: '',
         free_daily_limit: '',
+        free_daily_doc_limit: '',
+        free_daily_image_limit: '',
+        guest_doc_limit: '',
+        guest_image_limit: '',
     });
     const [isSavingSettings, setIsSavingSettings] = useState(false);
     const [settingsSaved, setSettingsSaved] = useState(false);
@@ -58,8 +68,13 @@ export default function AdminDashboard() {
             const data = await res.json();
             setSettings({
                 current_llm_model: data.settings.current_llm_model || 'gemini-2.5-flash',
+                current_router_model: data.settings.current_router_model || 'gemma-4-31b-it',
                 guest_message_limit: data.settings.guest_message_limit || '3',
                 free_daily_limit: data.settings.free_daily_limit || '20',
+                free_daily_doc_limit: data.settings.free_daily_doc_limit || '10',
+                free_daily_image_limit: data.settings.free_daily_image_limit || '10',
+                guest_doc_limit: data.settings.guest_doc_limit || '2',
+                guest_image_limit: data.settings.guest_image_limit || '2',
             });
         } catch {
             // Silently fail — settings might not be migrated yet
@@ -76,8 +91,13 @@ export default function AdminDashboard() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     current_llm_model: settings.current_llm_model,
+                    current_router_model: settings.current_router_model,
                     guest_message_limit: parseInt(settings.guest_message_limit),
                     free_daily_limit: parseInt(settings.free_daily_limit),
+                    free_daily_doc_limit: parseInt(settings.free_daily_doc_limit),
+                    free_daily_image_limit: parseInt(settings.free_daily_image_limit),
+                    guest_doc_limit: parseInt(settings.guest_doc_limit),
+                    guest_image_limit: parseInt(settings.guest_image_limit),
                 }),
             });
             if (res.ok) {
@@ -159,7 +179,7 @@ export default function AdminDashboard() {
                     <CardContent>
                         <form onSubmit={handleSaveSettings} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="llm_model">LLM Model</Label>
+                                <Label htmlFor="llm_model">Main LLM Model</Label>
                                 <Input
                                     id="llm_model"
                                     value={settings.current_llm_model}
@@ -167,9 +187,18 @@ export default function AdminDashboard() {
                                     placeholder="gemini-2.5-flash"
                                 />
                             </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="router_model">Router LLM Model</Label>
+                                <Input
+                                    id="router_model"
+                                    value={settings.current_router_model}
+                                    onChange={(e) => setSettings({ ...settings, current_router_model: e.target.value })}
+                                    placeholder="gemma-4-31b-it"
+                                />
+                            </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
-                                    <Label htmlFor="guest_limit">Guest Limit</Label>
+                                    <Label htmlFor="guest_limit">Guest Msgs</Label>
                                     <Input
                                         id="guest_limit"
                                         type="number"
@@ -177,10 +206,10 @@ export default function AdminDashboard() {
                                         value={settings.guest_message_limit}
                                         onChange={(e) => setSettings({ ...settings, guest_message_limit: e.target.value })}
                                     />
-                                    <p className="text-xs text-muted-foreground">Lifetime msgs</p>
+                                    <p className="text-xs text-muted-foreground">Lifetime</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="daily_limit">Free Daily Limit</Label>
+                                    <Label htmlFor="daily_limit">Daily Msgs</Label>
                                     <Input
                                         id="daily_limit"
                                         type="number"
@@ -188,7 +217,55 @@ export default function AdminDashboard() {
                                         value={settings.free_daily_limit}
                                         onChange={(e) => setSettings({ ...settings, free_daily_limit: e.target.value })}
                                     />
-                                    <p className="text-xs text-muted-foreground">Per day msgs</p>
+                                    <p className="text-xs text-muted-foreground">Per day</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                    <Label htmlFor="guest_doc_limit">Guest Docs</Label>
+                                    <Input
+                                        id="guest_doc_limit"
+                                        type="number"
+                                        min="0"
+                                        value={settings.guest_doc_limit}
+                                        onChange={(e) => setSettings({ ...settings, guest_doc_limit: e.target.value })}
+                                    />
+                                    <p className="text-xs text-muted-foreground">Lifetime</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="daily_doc_limit">Daily Docs</Label>
+                                    <Input
+                                        id="daily_doc_limit"
+                                        type="number"
+                                        min="0"
+                                        value={settings.free_daily_doc_limit}
+                                        onChange={(e) => setSettings({ ...settings, free_daily_doc_limit: e.target.value })}
+                                    />
+                                    <p className="text-xs text-muted-foreground">Per day</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                    <Label htmlFor="guest_image_limit">Guest Images</Label>
+                                    <Input
+                                        id="guest_image_limit"
+                                        type="number"
+                                        min="0"
+                                        value={settings.guest_image_limit}
+                                        onChange={(e) => setSettings({ ...settings, guest_image_limit: e.target.value })}
+                                    />
+                                    <p className="text-xs text-muted-foreground">Lifetime</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="daily_image_limit">Daily Images</Label>
+                                    <Input
+                                        id="daily_image_limit"
+                                        type="number"
+                                        min="0"
+                                        value={settings.free_daily_image_limit}
+                                        onChange={(e) => setSettings({ ...settings, free_daily_image_limit: e.target.value })}
+                                    />
+                                    <p className="text-xs text-muted-foreground">Per day</p>
                                 </div>
                             </div>
                             <Button type="submit" className="w-full" disabled={isSavingSettings}>

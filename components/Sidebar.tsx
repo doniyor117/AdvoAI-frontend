@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MessageSquare, Plus, Scale, X, PanelLeftClose, Search, Settings, User, LogOut, CreditCard, FileText, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn } from 'lucide-react';
+import { MessageSquare, Plus, Scale, X, PanelLeftClose, PanelLeftOpen, Search, Settings, User, LogOut, CreditCard, FileText, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
@@ -18,6 +18,8 @@ interface SidebarProps {
   setIsOpen: (isOpen: boolean) => void;
   onNewConsultation: () => void;
   onAgreementSummaryClick?: () => void;
+  onCompareContractsClick?: () => void;
+  onCreateContractClick?: () => void;
   onSessionClick?: () => void;
 }
 
@@ -66,7 +68,7 @@ function SessionMenu({ onDelete, onRename, onPin, isPinned }: { onDelete: (e: Re
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`
             }}
-            className="w-36 bg-white dark:bg-[#161B22] border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden z-[9999]"
+            className="w-36 bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-[9999]"
           >
             <div className="p-1 flex flex-col">
               <button
@@ -97,11 +99,12 @@ function SessionMenu({ onDelete, onRename, onPin, isPinned }: { onDelete: (e: Re
   );
 }
 
-export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSummaryClick, onSessionClick }: SidebarProps) {
+export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSummaryClick, onCompareContractsClick, onCreateContractClick, onSessionClick }: SidebarProps) {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
   const { t, lang, setLang } = useLanguage();
@@ -184,84 +187,128 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
     <>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <>
-            {/* Mobile Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
-              onClick={() => setIsOpen(false)}
-            />
+      {/* Mobile Backdrop */}
+      <div
+        className={`fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setIsOpen(false)}
+      />
 
-            <motion.aside
-              initial={{ x: '-100%', width: 0 }}
-              animate={{ x: 0, width: 256 }}
-              exit={{ x: '-100%', width: 0 }}
-              transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
-              className="fixed inset-y-0 left-0 z-50 bg-[#fafafa] dark:bg-[#0a0a0a] border-r border-black/5 dark:border-white/5 flex flex-col md:relative overflow-hidden transition-colors duration-200"
+      <aside
+        className={`fixed md:relative inset-y-0 left-0 z-50 bg-[#FDFBF7] dark:bg-sidebar border-r border-slate-200 dark:border-sidebar-border flex flex-col overflow-hidden transition-[width,transform] duration-300 ease-in-out flex-shrink-0 ${
+          isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 md:translate-x-0 md:w-[60px]'
+        }`}
+      >
+        <div className="w-64 h-full flex flex-col">
+          <div className="px-3 py-3 flex items-center justify-between min-w-[256px] h-[60px]">
+            <button
+              className="flex-1 flex items-center gap-3 text-primary dark:text-[#E6EDF3] group/logo rounded-lg transition-colors relative"
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label="Toggle sidebar"
             >
-              <div className="p-4 border-b border-black/5 dark:border-white/5 flex items-center justify-between min-w-[256px]">
-                <div className="flex items-center gap-3 text-primary dark:text-[#E6EDF3]">
-                  <Image src="/advoai-logo.png" alt="AdvoAI Logo" width={36} height={36} className="w-9 h-9 object-contain" referrerPolicy="no-referrer" />
-                  <span className="text-lg font-bold text-slate-900 dark:text-white">{t('chatbot_name')}</span>
-                </div>
-                <button
-                  className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors active:scale-95"
-                  onClick={() => setIsOpen(false)}
-                  aria-label="Close sidebar"
-                >
-                  <PanelLeftClose className="w-5 h-5 hidden md:block" />
-                  <X className="w-5 h-5 md:hidden" />
-                </button>
+              <div className="relative w-10 h-10 flex items-center justify-center flex-shrink-0 rounded-md transition-colors">
+                <Image src="/advoai-logo.png" alt="AdvoAI Logo" width={40} height={40} className="object-contain" referrerPolicy="no-referrer" unoptimized />
               </div>
+              <span className={`text-xl font-bold text-slate-900 dark:text-white transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 overflow-hidden w-0'}`}>
+                {t('chatbot_name')}
+              </span>
+            </button>
+            <button
+              className="hidden md:flex text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors active:scale-95"
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label="Toggle sidebar"
+            >
+              {isOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+            </button>
+            <button
+              className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors active:scale-95 md:hidden"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-              <div className="p-4 min-w-[256px] space-y-3">
+          <div className="px-3 py-2 min-w-[256px] space-y-1">
+            <button
+              onClick={handleNewConsultation}
+              className={`w-full flex items-center gap-3 p-2 hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors active:scale-95 group/newchat ${!isOpen ? 'md:w-9' : ''}`}
+              aria-label="New Chat"
+            >
+              <Edit2 className="w-5 h-5 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+              <span className={`font-medium transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 md:hidden'}`}>{t('sidebar.new_consultation')}</span>
+            </button>
+
+            <div className="relative">
+              {!isSearchActive && (
                 <button
-                  onClick={handleNewConsultation}
-                  className="w-full flex items-center justify-center gap-2 bg-primary dark:bg-[#1F6FEB] hover:bg-primary-hover dark:hover:bg-[#388bfd] text-white py-2.5 px-4 rounded-lg font-medium transition-colors shadow-sm active:scale-95"
-                  aria-label="New Consultation"
+                  onClick={() => {
+                    setIsSearchActive(true);
+                    if (!isOpen && window.innerWidth >= 768) setIsOpen(true);
+                  }}
+                  className={`w-full flex items-center gap-3 p-2 hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors active:scale-95 ${!isOpen ? 'md:w-9' : ''}`}
                 >
-                  <Plus className="w-4 h-4" />
-                  {t('sidebar.new_consultation')}
+                  <Search className="w-5 h-5 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                  <span className={`font-medium transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 md:hidden'}`}>{t('sidebar.search_chats')}</span>
                 </button>
-
-                <div className="relative">
+              )}
+              
+              {isSearchActive && (
+                <div className={`relative transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input
                     type="text"
+                    autoFocus
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onBlur={() => { if (!searchQuery) setIsSearchActive(false); }}
                     placeholder={t('sidebar.search_past_sessions')}
-                    className="w-full pl-9 pr-3 py-2 bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:focus:ring-white/20 focus:border-primary dark:focus:border-white/30 transition-all text-slate-700 dark:text-[#E6EDF3] placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    className="w-full pl-9 pr-8 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 dark:focus:ring-white/20 focus:border-primary dark:focus:border-white/30 transition-all text-slate-700 dark:text-[#E6EDF3] placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   />
+                  <button 
+                    onClick={() => { setIsSearchActive(false); setSearchQuery(''); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
 
-              <div className="hidden px-3 pb-2 space-y-1 min-w-[256px]">
-                <button
-                  onClick={() => {
-                    if (onAgreementSummaryClick) onAgreementSummaryClick();
-                    if (window.innerWidth < 768) setIsOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors active:scale-95"
-                >
-                  <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                  <span className="truncate font-medium">{t('sidebar.agreement_summary')}</span>
-                </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors active:scale-95">
-                  <GitCompare className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                  <span className="truncate font-medium">{t('sidebar.compare_agreements')}</span>
-                </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors active:scale-95">
-                  <FileSignature className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                  <span className="truncate font-medium">{t('sidebar.create_agreement')}</span>
-                </button>
-              </div>
+          <div className={`px-3 pb-2 mt-4 space-y-1 min-w-[256px] transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
+            <button
+              onClick={() => {
+                if (onAgreementSummaryClick) onAgreementSummaryClick();
+                if (window.innerWidth < 768) setIsOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors active:scale-95"
+            >
+              <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+              <span className="truncate font-medium">{t('sidebar.agreement_summary')}</span>
+            </button>
+            <button
+              onClick={() => {
+                if (onCompareContractsClick) onCompareContractsClick();
+                if (window.innerWidth < 768) setIsOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors active:scale-95"
+            >
+              <GitCompare className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+              <span className="truncate font-medium">{t('sidebar.compare_agreements')}</span>
+            </button>
+            <button
+              onClick={() => {
+                if (onCreateContractClick) onCreateContractClick();
+                if (window.innerWidth < 768) setIsOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors active:scale-95"
+            >
+              <FileSignature className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+              <span className="truncate font-medium">{t('sidebar.create_agreement')}</span>
+            </button>
+          </div>
 
-              <div className="flex-1 overflow-y-auto px-3 pb-3 pt-1 space-y-1 min-w-[256px]">
+          <div className={`flex-1 overflow-y-auto px-3 pb-3 pt-5 mt-2 space-y-1 min-w-[256px] transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
                 <div className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 px-2">{t('sidebar.recent_sessions')}</div>
 
                 {isHydrated && filteredSessions.length === 0 ? (
@@ -326,131 +373,131 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
               </div>
 
               {/* ── Dynamic Auth Footer ──────────────────────── */}
-              <div className="p-4 border-t border-black/5 dark:border-white/5 min-w-[256px] relative" ref={profileMenuRef}>
-                {isAuthenticated && user ? (
-                  <>
-                    {/* Logged-in: Profile dropdown */}
-                    <AnimatePresence>
-                      {isProfileMenuOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute bottom-full left-4 right-4 mb-2 bg-white dark:bg-[#161B22] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg overflow-hidden z-50"
-                        >
-                          <div className="p-2 space-y-1 relative">
-                            {/* Language Dropdown */}
-                            <div className="relative" ref={langMenuRef}>
+              <div className="mt-auto p-4 border-t border-black/5 dark:border-white/5 min-w-[256px] relative" ref={profileMenuRef}>
+                <div className={`transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
+                  {isAuthenticated && user ? (
+                    <>
+                      {/* Logged-in: Profile dropdown */}
+                      <AnimatePresence>
+                        {isProfileMenuOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute bottom-full left-4 right-4 mb-2 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50"
+                          >
+                            <div className="p-2 space-y-1 relative">
+                              {/* Language Dropdown */}
+                              <div className="relative" ref={langMenuRef}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsLangMenuOpen(!isLangMenuOpen);
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors focus:outline-none"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Globe className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                                    <span className="font-medium">{languages.find(l => l.code === lang)?.label}</span>
+                                  </div>
+                                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isLangMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                <AnimatePresence>
+                                  {isLangMenuOpen && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: -5 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      exit={{ opacity: 0, y: -5 }}
+                                      className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#0F1117] border border-slate-200 dark:border-slate-700 rounded-lg shadow-md overflow-hidden z-[60]"
+                                    >
+                                      {languages.map((l) => (
+                                        <button
+                                          key={l.code}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setLang(l.code as Language);
+                                            setIsLangMenuOpen(false);
+                                          }}
+                                          className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-sm text-slate-700 dark:text-slate-300 transition-colors"
+                                        >
+                                          <span>{l.label}</span>
+                                          {lang === l.code && <Check className="w-4 h-4 text-primary dark:text-[#1F6FEB]" />}
+                                        </button>
+                                      ))}
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+
+                              <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2" />
+
+                              {isAdmin && (
+                                <Link
+                                  href="/admin"
+                                  onClick={() => setIsProfileMenuOpen(false)}
+                                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors"
+                                >
+                                  <Shield className="w-4 h-4 text-primary dark:text-[#1F6FEB]" />
+                                  <span>Admin Panel</span>
+                                </Link>
+                              )}
+
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsLangMenuOpen(!isLangMenuOpen);
+                                onClick={() => {
+                                  setIsProfileMenuOpen(false);
+                                  setIsSettingsOpen(true);
                                 }}
-                                className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors focus:outline-none"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Globe className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                                  <span className="font-medium">{languages.find(l => l.code === lang)?.label}</span>
-                                </div>
-                                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isLangMenuOpen ? 'rotate-180' : ''}`} />
-                              </button>
-
-                              <AnimatePresence>
-                                {isLangMenuOpen && (
-                                  <motion.div
-                                    initial={{ opacity: 0, y: -5 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -5 }}
-                                    className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#0F1117] border border-slate-200 dark:border-slate-700 rounded-lg shadow-md overflow-hidden z-[60]"
-                                  >
-                                    {languages.map((l) => (
-                                      <button
-                                        key={l.code}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setLang(l.code as Language);
-                                          setIsLangMenuOpen(false);
-                                        }}
-                                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-sm text-slate-700 dark:text-slate-300 transition-colors"
-                                      >
-                                        <span>{l.label}</span>
-                                        {lang === l.code && <Check className="w-4 h-4 text-primary dark:text-[#1F6FEB]" />}
-                                      </button>
-                                    ))}
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-
-                            <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2" />
-
-                            {isAdmin && (
-                              <Link
-                                href="/admin"
-                                onClick={() => setIsProfileMenuOpen(false)}
                                 className="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors"
                               >
-                                <Shield className="w-4 h-4 text-primary dark:text-[#1F6FEB]" />
-                                <span>Admin Panel</span>
-                              </Link>
-                            )}
+                                <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                                <span>{t('sidebar.settings')}</span>
+                              </button>
 
-                            <button
-                              onClick={() => {
-                                setIsProfileMenuOpen(false);
-                                setIsSettingsOpen(true);
-                              }}
-                              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors"
-                            >
-                              <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                              <span>{t('sidebar.settings')}</span>
-                            </button>
-
-                            <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2" />
-                            <button
-                              onClick={handleLogout}
-                              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm text-left transition-colors"
-                            >
-                              <LogOut className="w-4 h-4 text-red-500 dark:text-red-400" />
-                              <span>{t('sidebar.log_out')}</span>
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
-                    <button
-                      onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors active:scale-95 ${isProfileMenuOpen ? 'bg-black/5 dark:bg-white/5' : 'hover:bg-black/5 dark:hover:bg-white/5'} text-slate-700 dark:text-slate-300`}
-                    >
-                      <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {initials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="truncate font-medium block text-sm">{displayName}</span>
-                        {user.email && (
-                          <span className="truncate block text-xs text-muted-foreground">{user.email}</span>
+                              <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2" />
+                              <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm text-left transition-colors"
+                              >
+                                <LogOut className="w-4 h-4 text-red-500 dark:text-red-400" />
+                                <span>{t('sidebar.log_out')}</span>
+                              </button>
+                            </div>
+                          </motion.div>
                         )}
-                      </div>
-                      <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                    </button>
-                  </>
-                ) : (
-                  /* Not logged in: Login/Signup button */
-                  <Link
-                    href="/login"
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary dark:bg-[#1F6FEB] hover:bg-primary-hover dark:hover:bg-[#388bfd] text-white rounded-lg text-sm font-medium transition-colors active:scale-95"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    Log In / Sign Up
-                  </Link>
-                )}
+                      </AnimatePresence>
+
+                      <button
+                        onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors active:scale-95 ${isProfileMenuOpen ? 'bg-black/5 dark:bg-white/5' : 'hover:bg-black/5 dark:hover:bg-white/5'} text-slate-700 dark:text-slate-300`}
+                      >
+                        <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold flex-shrink-0">
+                          {initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="truncate font-medium block text-sm text-slate-900 dark:text-white">{displayName}</span>
+                          {user.email && (
+                            <span className="truncate block text-xs text-slate-500">{user.email}</span>
+                          )}
+                        </div>
+                        <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                      </button>
+                    </>
+                  ) : (
+                    /* Not logged in: Login/Signup button */
+                    <Link
+                      href="/login"
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary dark:text-[#E6EDF3] dark:bg-white/10 dark:hover:bg-white/20 rounded-full text-sm font-medium transition-all duration-300 shadow-sm shadow-inner hover:scale-[1.02] active:scale-95 border border-primary/10 dark:border-white/10"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      Log In / Sign Up
+                    </Link>
+                  )}
+                </div>
               </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+        </div>
+      </aside>
     </>
   );
 }

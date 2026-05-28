@@ -10,8 +10,10 @@ export interface User {
   email: string;
   full_name: string | null;
   role: 'guest' | 'free' | 'admin';
-  auth_provider: 'email' | 'google';
+  auth_provider: 'email' | 'google' | 'both';
   email_verified: boolean;
+  has_password?: boolean;
+  is_google_linked?: boolean;
 }
 
 interface AuthContextType {
@@ -20,7 +22,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, password: string, fullName: string) => Promise<{ success: boolean; error?: string }>;
+  sendRegistrationOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, fullName: string, otp: string) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: (credential: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -80,12 +83,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function signup(email: string, password: string, fullName: string) {
+  async function sendRegistrationOtp(email: string) {
+    try {
+      const res = await authFetch('/api/auth/send-registration-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await safeJson(res);
+      if (res.ok) return { success: true };
+      return { success: false, error: (data.detail as string) || 'Failed to send verification code.' };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      return { success: false, error: msg };
+    }
+  }
+
+  async function signup(email: string, password: string, fullName: string, otp: string) {
     try {
       const res = await authFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, full_name: fullName }),
+        body: JSON.stringify({ email, password, full_name: fullName, otp }),
       });
 
       const data = await safeJson(res);
@@ -142,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated,
         isAdmin,
         login,
+        sendRegistrationOtp,
         signup,
         loginWithGoogle,
         logout,

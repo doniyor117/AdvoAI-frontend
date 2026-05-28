@@ -107,7 +107,12 @@ export default function LoginPage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="password">Password</Label>
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="password">Password</Label>
+                                            <Link href="/forgot-password" className="text-xs text-primary hover:underline font-medium">
+                                                Forgot Password?
+                                            </Link>
+                                        </div>
                                         <div className="relative">
                                             <Input
                                                 id="password"
@@ -182,10 +187,13 @@ export default function LoginPage() {
             </div>
 
             {/* Right: Cover */}
-            <div className="relative hidden lg:block bg-primary">
+            <div 
+                className="relative hidden lg:block bg-cover bg-center"
+                style={{ backgroundImage: "url('/login-background-img.png')" }}
+            >
                 {/* Decorative gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/80" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-primary-foreground z-10">
+                <div className="absolute inset-0 bg-black/40" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-white z-10">
                     <Scale className="size-16 mb-6 opacity-90" />
                     <h2 className="text-3xl font-serif font-bold mb-3 text-center">Legal Intelligence, Simplified</h2>
                     <p className="text-center text-primary-foreground/70 max-w-md text-lg">

@@ -28,8 +28,22 @@
         "Burning the midnight oil, {name}?"
       ],
       "welcome_messages_returning": [
-        "Back at it, {name}!",
-        "Welcome back, {name}!"
+        "Welcome back, {name}!",
+        "Good to see you again, {name}!"
+      ],
+      "empty_state_prompts": [
+        "How do I start a business?",
+        "What are the rules for employment contracts?",
+        "How does the divorce process work?",
+        "How is inheritance distributed?",
+        "How is child support calculated?",
+        "What are consumer rights?",
+        "Information on tax benefits",
+        "Hiring a lawyer for a criminal case",
+        "How to protect copyright?",
+        "What happens if a loan payment is overdue?",
+        "Procedure for privatizing housing",
+        "About newly adopted laws"
       ],
       "marquee_items_row1": [
         {
@@ -75,7 +89,7 @@
         }
       ],
       "input_placeholder": "Ask anything",
-      "new_consultation": "New Consultation",
+      "new_consultation": "New chat",
       "current_consultation": "Current Consultation",
       "processing": "{chatbot_name} is processing...",
       "unlock_pro": "Unlock all the benefits of top AI — all in one place.",
@@ -84,7 +98,8 @@
       "footer_disclaimer": "{chatbot_name} is AI and can make mistakes. Check important info."
     },
     "sidebar": {
-      "new_consultation": "New Consultation",
+      "new_consultation": "New chat",
+      "search_chats": "Search chats",
       "search_past_sessions": "Search past sessions...",
       "recent_sessions": "Recent Sessions",
       "pinned_sessions": "Pinned",
@@ -109,43 +124,95 @@
       "save_changes": "Save Changes",
       "saving": "Saving...",
       "saved": "Saved!",
-      "save_error": "Failed to save. Please try again."
+      "save_error": "Failed to save. Please try again.",
+      "security": "Security",
+      "change_password": "Change Password",
+      "google_no_password": "You registered with Google. You can set a password from the forgot password page.",
+      "current_password": "Current Password",
+      "new_password": "New Password",
+      "confirm_new_password": "Confirm New Password",
+      "update_password": "Update Password",
+      "change_email": "Change Email Address",
+      "new_email": "New Email Address",
+      "request_email_change": "Request Email Change",
+      "verification_code": "Verification Code",
+      "verify_and_update": "Verify & Update",
+      "cancel": "Cancel",
+      "linked_accounts": "Linked Accounts",
+      "google_account": "Google Account",
+      "connected": "Connected",
+      "not_connected": "Not connected",
+      "disconnect": "Disconnect",
+      "connect": "Connect"
     },
     "insight": {
       "view_on_lex": "View on Lex.uz"
+    },
+    "wizard": {
+      "title": "Create Contract",
+      "guided_interview": "Guided Interview",
+      "start_template": "Start from Template",
+      "employment_contract": "Employment Contract",
+      "employment_desc": "Standard Uzb compliant",
+      "nda": "Non-Disclosure Agreement",
+      "nda_desc": "Protect your secrets",
+      "lease": "Residential Lease",
+      "lease_desc": "Standard rental agreement",
+      "service_agreement": "Service Agreement",
+      "service_desc": "B2B service terms"
+    },
+    "prompts": {
+      "draft_custom_contract": "I want to draft a new custom contract. Please ask me questions to guide me through the drafting process.",
+      "draft_template_contract": "I want to draft a new {templateId} contract. Please use the standard template as a base.",
+      "compare_contracts": "Compare these contracts. Identify discrepancies, missing clauses, and risks.",
+      "summarize_agreement": "Please summarize this agreement. Highlight key clauses, obligations, and potential risks."
     }
   },
   "uz": {
     "chatbot_name": "AdvoAI",
     "chat": {
       "welcome_messages_generic": [
-        "Bugun rejangizda nima bor?",
+        "Bugun qanday yordam bera olaman?",
         "Nimadan boshlaymiz?",
-        "Bugun sizga qanday yordam bera olaman?",
-        "Huquqiy mavzularni o'rganishga tayyormisiz?"
+        "Xush kelibsiz! Savollaringiz bormi?",
+        "Huquqiy maslahat kerakmi?"
       ],
       "welcome_messages_named": [
         "Nimadan boshlaymiz, {name}?",
         "Bugun sizga qanday yordam bera olaman, {name}?",
-        "Salom, {name}!",
-        "Qanday ahvolingiz, {name}?"
+        "Assalomu alaykum, {name}!",
+        "Ishlar qanday, {name}?"
       ],
       "welcome_messages_morning": [
         "Xayrli tong, {name}!",
-        "Xayrli tong! Boshlashga tayyormisiz?"
+        "Xayrli tong! Bugun nimadan boshlaymiz?"
       ],
       "welcome_messages_evening": [
         "Xayrli kech, {name}!",
-        "Kech, {name}!"
+        "Kechingiz xayrli o'tsin, {name}!"
       ],
       "welcome_messages_night": [
-        "Bugun kechqurun nima o'ylayapsiz?",
-        "Xayrli kech, tungi boyqush!",
-        "Yarim tunda ishlayapsizmi, {name}?"
+        "Tuningiz osuda o'tsin, qanday yordam bera olaman?",
+        "Xayrli tun!",
+        "Kechikib ishlayapsizmi, {name}?"
       ],
       "welcome_messages_returning": [
-        "Yana keldingiz, {name}!",
+        "Yana ko'rishganimizdan xursandmiz, {name}!",
         "Xush kelibsiz, {name}!"
+      ],
+      "empty_state_prompts": [
+        "Qanday qilib biznes ochaman?",
+        "Mehnat shartnomasi qoidalari qanday?",
+        "Ajrim jarayoni qanday kechadi?",
+        "Meros qanday taqsimlanadi?",
+        "Aliment miqdori qanday hisoblanadi?",
+        "Iste'molchilar huquqlari nimalardan iborat?",
+        "Soliq imtiyozlari haqida ma'lumot",
+        "Jinoyat ishi bo'yicha advokat yollash",
+        "Mualliflik huquqini qanday himoya qilish mumkin?",
+        "Kredit qarzini to'lash muddati o'tib ketsa nima bo'ladi?",
+        "Uy-joyni xususiylashtirish tartibi",
+        "Yangi qabul qilingan qonunlar haqida"
       ],
       "marquee_items_row1": [
         {
@@ -191,7 +258,7 @@
         }
       ],
       "input_placeholder": "Istalgan narsani so'rang",
-      "new_consultation": "Yangi konsultatsiya",
+      "new_consultation": "Yangi chat",
       "current_consultation": "Joriy konsultatsiya",
       "processing": "{chatbot_name} ishlamoqda...",
       "unlock_pro": "Eng yaxshi sun'iy intellektning barcha afzalliklarini oching — barchasi bir joyda.",
@@ -200,7 +267,8 @@
       "footer_disclaimer": "{chatbot_name} sun'iy intellekt va xato qilishi mumkin. Muhim ma'lumotlarni tekshiring."
     },
     "sidebar": {
-      "new_consultation": "Yangi konsultatsiya",
+      "new_consultation": "Yangi chat",
+      "search_chats": "Chatlarni qidirish",
       "search_past_sessions": "O'tgan seanslarni qidirish...",
       "recent_sessions": "So'nggi seanslar",
       "pinned_sessions": "Mahkamlangan",
@@ -225,10 +293,48 @@
       "save_changes": "O'zgarishlarni saqlash",
       "saving": "Saqlanmoqda...",
       "saved": "Saqlandi!",
-      "save_error": "Saqlab bo'lmadi. Qaytadan urinib ko'ring."
+      "save_error": "Saqlab bo'lmadi. Qaytadan urinib ko'ring.",
+      "security": "Xavfsizlik",
+      "change_password": "Parolni o'zgartirish",
+      "google_no_password": "Siz Google orqali ro'yxatdan o'tgansiz. Parolni tiklash sahifasidan parol o'rnatishingiz mumkin.",
+      "current_password": "Joriy parol",
+      "new_password": "Yangi parol",
+      "confirm_new_password": "Yangi parolni tasdiqlang",
+      "update_password": "Parolni yangilash",
+      "change_email": "Elektron pochtani o'zgartirish",
+      "new_email": "Yangi elektron pochta",
+      "request_email_change": "O'zgartirishni so'rash",
+      "verification_code": "Tasdiqlash kodi",
+      "verify_and_update": "Tasdiqlash va yangilash",
+      "cancel": "Bekor qilish",
+      "linked_accounts": "Ulangan hisoblar",
+      "google_account": "Google hisobi",
+      "connected": "Ulangan",
+      "not_connected": "Ulanmagan",
+      "disconnect": "Uzish",
+      "connect": "Ulash"
     },
     "insight": {
       "view_on_lex": "Lex.uz da ko'rish"
+    },
+    "wizard": {
+      "title": "Shartnoma yaratish",
+      "guided_interview": "Bosqichma-bosqich so'rov",
+      "start_template": "Shablondan boshlash",
+      "employment_contract": "Mehnat shartnomasi",
+      "employment_desc": "O'zbekiston qonunchiligiga mos",
+      "nda": "Maxfiylik kelishuvi",
+      "nda_desc": "Sirlaringizni himoya qiling",
+      "lease": "Turar-joy ijarasi",
+      "lease_desc": "Standart ijara shartnomasi",
+      "service_agreement": "Xizmat ko'rsatish shartnomasi",
+      "service_desc": "B2B xizmat shartlari"
+    },
+    "prompts": {
+      "draft_custom_contract": "Yangi maxsus shartnoma tuzmoqchiman. Iltimos, loyihani tuzish jarayonida menga yo'l-yo'riq ko'rsatish uchun savollar bering.",
+      "draft_template_contract": "Yangi {templateId} shartnomasini tuzmoqchiman. Iltimos, asos sifatida standart shablondan foydalaning.",
+      "compare_contracts": "Ushbu shartnomalarni taqqoslang. Tafovutlar, yetishmayotgan bandlar va xavflarni aniqlang.",
+      "summarize_agreement": "Iltimos, ushbu kelishuvni xulosa qiling. Asosiy bandlar, majburiyatlar va potentsial xavflarni ajratib ko'rsating."
     }
   },
   "ru": {
@@ -260,8 +366,22 @@
         "Работаете за полночь, {name}?"
       ],
       "welcome_messages_returning": [
-        "Снова за работу, {name}!",
-        "С возвращением, {name}!"
+        "С возвращением, {name}!",
+        "Рады снова видеть вас, {name}!"
+      ],
+      "empty_state_prompts": [
+        "Как открыть бизнес?",
+        "Каковы правила трудового договора?",
+        "Как проходит процесс развода?",
+        "Как распределяется наследство?",
+        "Как рассчитывается размер алиментов?",
+        "В чем заключаются права потребителей?",
+        "Информация о налоговых льготах",
+        "Наем адвоката по уголовному делу",
+        "Как защитить авторские права?",
+        "Что будет при просрочке кредита?",
+        "Порядок приватизации жилья",
+        "О недавно принятых законах"
       ],
       "marquee_items_row1": [
         {
@@ -307,7 +427,7 @@
         }
       ],
       "input_placeholder": "Спросите что угодно",
-      "new_consultation": "Новая консультация",
+      "new_consultation": "Новый чат",
       "current_consultation": "Текущая консультация",
       "processing": "{chatbot_name} обрабатывает...",
       "unlock_pro": "Откройте все преимущества лучшего ИИ — все в одном месте.",
@@ -316,7 +436,8 @@
       "footer_disclaimer": "{chatbot_name} — это ИИ и может ошибаться. Проверяйте важную информацию."
     },
     "sidebar": {
-      "new_consultation": "Новая консультация",
+      "new_consultation": "Новый чат",
+      "search_chats": "Поиск чатов",
       "search_past_sessions": "Поиск прошлых сеансов...",
       "recent_sessions": "Последние сеансы",
       "pinned_sessions": "Закреплённые",
@@ -341,10 +462,48 @@
       "save_changes": "Сохранить изменения",
       "saving": "Сохранение...",
       "saved": "Сохранено!",
-      "save_error": "Не удалось сохранить. Попробуйте ещё раз."
+      "save_error": "Не удалось сохранить. Попробуйте ещё раз.",
+      "security": "Безопасность",
+      "change_password": "Изменить пароль",
+      "google_no_password": "Вы зарегистрировались через Google. Вы можете установить пароль на странице забытого пароля.",
+      "current_password": "Текущий пароль",
+      "new_password": "Новый пароль",
+      "confirm_new_password": "Подтвердите новый пароль",
+      "update_password": "Обновить пароль",
+      "change_email": "Изменить email",
+      "new_email": "Новый email",
+      "request_email_change": "Запросить изменение",
+      "verification_code": "Код подтверждения",
+      "verify_and_update": "Подтвердить и обновить",
+      "cancel": "Отмена",
+      "linked_accounts": "Привязанные аккаунты",
+      "google_account": "Аккаунт Google",
+      "connected": "Подключено",
+      "not_connected": "Не подключено",
+      "disconnect": "Отключить",
+      "connect": "Подключить"
     },
     "insight": {
       "view_on_lex": "Смотреть на Lex.uz"
+    },
+    "wizard": {
+      "title": "Создание договора",
+      "guided_interview": "Пошаговое интервью",
+      "start_template": "Начать с шаблона",
+      "employment_contract": "Трудовой договор",
+      "employment_desc": "По стандартам РУз",
+      "nda": "Соглашение о неразглашении",
+      "nda_desc": "Защитите ваши секреты",
+      "lease": "Аренда жилья",
+      "lease_desc": "Стандартный договор аренды",
+      "service_agreement": "Договор оказания услуг",
+      "service_desc": "Условия B2B услуг"
+    },
+    "prompts": {
+      "draft_custom_contract": "Я хочу составить новый индивидуальный договор. Пожалуйста, задавайте мне вопросы, чтобы провести через процесс составления.",
+      "draft_template_contract": "Я хочу составить новый договор ({templateId}). Пожалуйста, используйте стандартный шаблон в качестве основы.",
+      "compare_contracts": "Сравните эти договоры. Выявите расхождения, недостающие пункты и риски.",
+      "summarize_agreement": "Пожалуйста, резюмируйте это соглашение. Выделите ключевые пункты, обязательства и возможные риски."
     }
   }
 }

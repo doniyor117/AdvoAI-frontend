@@ -2,11 +2,11 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2 } from 'lucide-react';
+import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageBubble } from './MessageBubble';
-import { Message, Citation } from '@/hooks/useChatManager';
+import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,7 +24,13 @@ interface ChatAreaProps {
   setIsSidebarOpen: (isOpen: boolean) => void;
   isHydrated?: boolean;
   chatTitle?: string;
+  attachments?: FileAttachment[];
+  uploadFile?: (file: File) => void;
+  removeAttachment?: (idx: number) => void;
+        onAttachmentClick?: (attachment: FileAttachment) => void;
 }
+
+
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -61,11 +67,17 @@ export function ChatArea({
   isSidebarOpen,
   setIsSidebarOpen,
   isHydrated = true,
-  chatTitle = ''
+  chatTitle = '',
+  attachments = [],
+  uploadFile,
+  removeAttachment,
+  onAttachmentClick
 }: ChatAreaProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const lastScrollTop = useRef(0);
   const [isTitleMenuOpen, setIsTitleMenuOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState('');
@@ -80,11 +92,23 @@ export function ChatArea({
 
   const currentSession = currentChatId ? sessions.find(s => s.id === currentChatId) : null;
   const isPinned = currentSession?.isPinned;
+  
+  const [randomPrompts, setRandomPrompts] = useState<string[]>([]);
+  useEffect(() => {
+    const prompts = t('chat.empty_state_prompts') as string[];
+    if (prompts && Array.isArray(prompts) && prompts.length > 0) {
+      const shuffled = [...prompts].sort(() => 0.5 - Math.random());
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRandomPrompts(shuffled.slice(0, 3));
+    }
+  }, [t]);
   // ── Dynamic greeting logic ───────────────────────────────
   const firstName = (() => {
     if (!user?.full_name) return '';
     return user.full_name.split(' ')[0];
   })();
+
+  const [randomSeed] = React.useState(() => Math.random());
 
   const getGreeting = React.useCallback(() => {
     const hour = new Date().getHours();
@@ -124,17 +148,18 @@ export function ChatArea({
       }
     }
 
-    // Flatten and pick random
+    // Flatten and pick random using the stable seed
     const all = pools.flat();
-    const msg = all[Math.floor(Math.random() * all.length)] || 'How can I help you today?';
+    const msg = all[Math.floor(randomSeed * all.length)] || 'How can I help you today?';
     return msg.replace('{name}', name);
-  }, [firstName, t, sessions.length]);
+  }, [firstName, t, sessions.length, randomSeed]);
 
   const [greeting, setGreeting] = useState('');
 
   useEffect(() => {
     if (messages.length > 0) return;
-    setGreeting(getGreeting());
+    const timer = setTimeout(() => setGreeting(getGreeting()), 0);
+    return () => clearTimeout(timer);
   }, [messages.length, getGreeting]);
 
   useClickOutside(titleMenuRef, () => setIsTitleMenuOpen(false), isTitleMenuOpen);
@@ -143,7 +168,19 @@ export function ChatArea({
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-    setShowScrollButton(!isNearBottom);
+    
+    // Show button only when scrolling up and not near bottom
+    if (isNearBottom) {
+      setShowScrollButton(false);
+    } else if (scrollTop < lastScrollTop.current - 5) {
+      // Scrolling up significantly
+      setShowScrollButton(true);
+    } else if (scrollTop > lastScrollTop.current + 5) {
+      // Scrolling down significantly
+      setShowScrollButton(false);
+    }
+    
+    lastScrollTop.current = scrollTop;
   };
 
   const scrollToBottom = (force = false) => {
@@ -156,30 +193,56 @@ export function ChatArea({
 
   const onSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isLoading || !inputValue.trim()) return;
+    if (isLoading || !inputValue.trim() || attachments.some(a => a.is_uploading)) return;
     handleSendMessage(inputValue);
   };
 
   const renderInputArea = (isCentered: boolean) => (
-    <div className={`w-full max-w-3xl mx-auto relative ${isCentered ? 'mt-4' : ''}`}>
+    <div className={`w-full max-w-4xl mx-auto relative px-4 ${isCentered ? 'mt-4' : ''}`}>
       <AnimatePresence>
         {showScrollButton && !isCentered && (
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            onClick={() => scrollToBottom(true)}
-            className="absolute -top-14 left-1/2 -translate-x-1/2 p-2 bg-white dark:bg-[#1C2128] border border-black/5 dark:border-white/5 rounded-full shadow-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors z-20 active:scale-95"
-            aria-label="Scroll to bottom"
-          >
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              onClick={() => scrollToBottom(true)}
+              className="absolute -top-14 left-1/2 -translate-x-1/2 p-2 bg-white/90 dark:bg-[#1C2128]/90 backdrop-blur-sm border border-black/5 dark:border-white/5 rounded-full shadow-lg text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary-foreground hover:scale-[1.05] transition-all z-20 active:scale-95"
+              aria-label="Scroll to bottom"
+            >
             <ArrowDown className="w-5 h-5" />
           </motion.button>
         )}
       </AnimatePresence>
       <form
         onSubmit={onSubmit}
-        className={`bg-white dark:bg-[#1C2128] border border-black/5 dark:border-white/5 rounded-2xl shadow-md transition-all duration-300 flex flex-col overflow-hidden ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+        className={`bg-white dark:bg-[#262626] border border-slate-200 dark:border-white/5 rounded-3xl shadow-xl transition-all duration-300 flex flex-col overflow-hidden ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
       >
+        {attachments.length > 0 && removeAttachment && (
+          <div className="flex items-center gap-3 px-5 pt-4 pb-1 flex-wrap">
+            {attachments.map((file, idx) => (
+              <div key={idx} className="relative flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-white/10 rounded-2xl p-2 w-20 h-20 shadow-sm group">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 relative overflow-hidden">
+                  {file.is_uploading ? (
+                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  ) : file.mime_type?.startsWith('image/') && file.local_url ? (
+                    <img src={file.local_url} alt={file.display_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[9px] font-bold uppercase tracking-wider">{file.display_name.split('.').pop()?.slice(0, 4) || 'DOC'}</span>
+                  )}
+                </div>
+                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400 w-full text-center truncate px-1">{file.display_name}</span>
+                <button 
+                  type="button" 
+                  onClick={() => removeAttachment(idx)}
+                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-slate-200 dark:bg-[#333] border border-slate-300 dark:border-[#555] flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <TextareaAutosize
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
@@ -192,34 +255,46 @@ export function ChatArea({
           disabled={isLoading}
           maxLength={4000}
           placeholder={t('chat.input_placeholder')}
-          className="w-full py-4 px-4 bg-transparent border-0 focus:ring-0 focus:outline-none resize-none text-[15px] text-slate-800 dark:text-[#E6EDF3] placeholder-slate-400 dark:placeholder-slate-500 leading-relaxed"
+          className="w-full p-5 bg-transparent border-0 focus:ring-0 focus:outline-none resize-none text-base font-sans text-slate-800 dark:text-[#E6EDF3] placeholder-slate-400 dark:placeholder-slate-500 leading-relaxed scrollbar-none"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           minRows={1}
           maxRows={6}
         />
 
-        <div className="flex items-center justify-between px-2 pb-2">
+        <div className="flex items-center justify-between px-3 pb-3">
+          <input 
+            type="file" 
+            multiple 
+            className="hidden" 
+            ref={fileInputRef} 
+            accept=".pdf,.txt,.md,.csv,.html,.htm,.doc,.docx,.rtf,.png,.jpg,.jpeg,.webp,.gif"
+            onChange={(e) => {
+              if (e.target.files && uploadFile) {
+                Array.from(e.target.files).forEach(file => uploadFile(file));
+              }
+              e.target.value = ''; // Reset to allow same file re-upload
+            }}
+          />
           <button
             type="button"
-            className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors rounded-lg hover:bg-black/5 dark:hover:bg-white/5 active:scale-95"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95"
             aria-label="Attach file"
           >
             <Paperclip className="w-5 h-5" />
           </button>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-400">
-              {inputValue.length} / 4000
-            </span>
             <button
               type="submit"
               disabled={!inputValue.trim() || isLoading || inputValue.length > 4000}
-              className={`p-2 rounded-xl transition-all duration-300 active:scale-95 ${inputValue.trim() && !isLoading && inputValue.length <= 4000
-                ? 'bg-slate-900 dark:bg-white text-white dark:text-black shadow-md hover:bg-slate-800 dark:hover:bg-slate-200'
+              className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${inputValue.trim() && !isLoading && inputValue.length <= 4000
+                ? 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:scale-[1.05]'
                 : 'bg-black/5 dark:bg-white/5 text-slate-400 dark:text-slate-600'
                 }`}
               aria-label="Send message"
             >
-              {isLoading ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+              {isLoading ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> : <ArrowUp className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -230,22 +305,7 @@ export function ChatArea({
     </div>
   );
 
-  const promptsRow1 = t('chat.marquee_items_row1') as { text: string, icon: string | null, iconColor?: string }[];
-  const promptsRow2 = t('chat.marquee_items_row2') as { text: string, icon: string | null, iconColor?: string }[];
 
-  const renderPromptButton = (prompt: { text: string, icon: string | null, iconColor?: string }, idx: number, row: number, group: number) => {
-    const IconComponent = prompt.icon ? iconMap[prompt.icon] : null;
-    return (
-      <button
-        key={`row${row}-g${group}-${idx}`}
-        onClick={() => handleSendMessage(prompt.text)}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/50 dark:bg-[#1C2128]/50 border border-slate-200/50 dark:border-slate-700/50 rounded-xl text-[12px] md:text-[13px] font-medium text-slate-600 dark:text-slate-400 shadow-sm hover:shadow hover:bg-white dark:hover:bg-[#1C2128] hover:text-slate-800 dark:hover:text-[#E6EDF3] hover:border-slate-300 dark:hover:border-slate-600 transition-all active:scale-95 whitespace-nowrap"
-      >
-        {IconComponent && <IconComponent className={`w-3.5 h-3.5 opacity-70 ${prompt.iconColor || ''}`} />}
-        {prompt.text}
-      </button>
-    );
-  };
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -294,12 +354,11 @@ export function ChatArea({
             {!isSidebarOpen && (
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="p-1.5 text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors flex items-center gap-2 active:scale-95 flex-shrink-0"
+                className="p-1.5 text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors flex items-center gap-2 active:scale-95 flex-shrink-0 md:hidden"
                 title="Open sidebar"
                 aria-label="Open sidebar"
               >
-                <PanelLeftOpen className="w-5 h-5 hidden md:block" />
-                <Menu className="w-5 h-5 md:hidden" />
+                <Menu className="w-5 h-5" />
               </button>
             )}
             {isSidebarOpen && <button
@@ -314,9 +373,9 @@ export function ChatArea({
             {/* Branding / Title Logic */}
             {messages.length === 0 ? (
               !isSidebarOpen && (
-                <div className="flex items-center gap-3 text-slate-900 dark:text-[#E6EDF3] flex-1 justify-center md:justify-start pr-8 md:pr-0">
-                  <Image src="/advoai-logo.png" alt="AdvoAI Logo" width={36} height={36} className="w-9 h-9 object-contain" referrerPolicy="no-referrer" />
-                  <span className="text-lg font-bold text-slate-900 dark:text-white">{t('chatbot_name')}</span>
+                <div className="flex items-center gap-3 text-slate-900 dark:text-[#E6EDF3] flex-1 justify-center md:justify-start pr-8 md:pr-0 md:pl-1">
+                  <Image src="/advoai-logo.png" alt="AdvoAI Logo" width={40} height={40} className="w-10 h-10 object-contain md:hidden" referrerPolicy="no-referrer" unoptimized />
+                  <span className="text-xl font-bold text-slate-900 dark:text-white">{t('chatbot_name')}</span>
                 </div>
               )
             ) : (
@@ -411,42 +470,42 @@ export function ChatArea({
             variants={containerVariants}
             initial="hidden"
             animate="show"
-            className="flex-1 flex flex-col items-center justify-center text-center max-w-5xl mx-auto relative z-10 w-full md:mb-12"
+            className="flex-1 flex flex-col items-center justify-center text-center w-full px-4"
           >
-            <div className="flex flex-col items-center w-full max-w-2xl mb-8 px-4 sm:px-8 md:px-0">
-              <motion.h2 variants={itemVariants} className="text-xl md:text-3xl font-semibold text-slate-800 dark:text-[#E6EDF3] mb-4 tracking-tight">
+            <div className="w-full max-w-3xl mx-auto flex flex-col items-center">
+              <motion.h1 variants={itemVariants} className="text-2xl md:text-3xl font-semibold text-slate-800 dark:text-[#E6EDF3] mb-8 tracking-tight">
                 {greeting}
-              </motion.h2>
+              </motion.h1>
 
-              <motion.div variants={itemVariants} className="w-full overflow-hidden mask-gradient flex flex-col gap-2 opacity-50 hover:opacity-100 transition-opacity duration-500">
-                {/* Row 1 */}
-                <div className="flex w-max animate-marquee pause-on-hover">
-                  {[1, 2].map((group) => (
-                    <div key={`group1-${group}`} className="flex gap-2 pr-2">
-                      {promptsRow1.map((prompt, idx) => renderPromptButton(prompt, idx, 1, group))}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Row 2 */}
-                <div className="flex w-max animate-marquee-reverse pause-on-hover">
-                  {[1, 2].map((group) => (
-                    <div key={`group2-${group}`} className="flex gap-2 pr-2">
-                      {promptsRow2.map((prompt, idx) => renderPromptButton(prompt, idx, 2, group))}
-                    </div>
-                  ))}
-                </div>
+              <motion.div variants={itemVariants} className="w-full relative z-20">
+                {renderInputArea(true)}
               </motion.div>
-            </div>
 
-            <motion.div variants={itemVariants} className="w-full px-4 hidden md:block">
-              {renderInputArea(true)}
-            </motion.div>
+              {randomPrompts.length > 0 && (
+                <motion.div variants={itemVariants} className="w-full flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-4 md:mt-6">
+                  {randomPrompts.map((prompt, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSendMessage(prompt)}
+                      className="group flex items-center gap-2 bg-transparent rounded-xl px-3 py-1.5 text-sm font-medium text-slate-500 dark:text-zinc-400 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200 transition-all duration-200 cursor-pointer"
+                    >
+                      {prompt}
+                      <CornerDownLeft className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </div>
           </motion.div>
         ) : (
-          <div className="max-w-3xl mx-auto w-full space-y-0 flex-1 pb-32">
+          <div className="max-w-4xl mx-auto w-full space-y-0 flex-1 pb-32">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} onCitationClick={onCitationClick} />
+              <MessageBubble 
+                key={msg.id} 
+                message={msg} 
+                onCitationClick={onCitationClick}
+                onAttachmentClick={onAttachmentClick}
+              />
             ))}
 
             <AnimatePresence>
@@ -472,7 +531,7 @@ export function ChatArea({
 
       {/* Input Area (Sticky Bottom when messages exist OR on mobile when empty) */}
         {(messages.length > 0) && (
-        <div className={`absolute bottom-0 left-0 right-0 p-4 flex-shrink-0 z-20 pb-6 pointer-events-none ${messages.length === 0 ? 'block md:hidden' : 'block'}`}>
+        <div className={`absolute bottom-0 left-0 right-0 p-4 flex-shrink-0 z-20 pb-6 pt-12 pointer-events-none bg-gradient-to-t from-background via-background/80 to-transparent ${messages.length === 0 ? 'block md:hidden' : 'block'}`}>
           <div className="pointer-events-auto">
             {renderInputArea(false)}
           </div>
