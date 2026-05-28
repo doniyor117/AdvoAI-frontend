@@ -63,6 +63,14 @@ export async function authFetch(
     }
 
     const headers = new Headers(options.headers || {});
+    
+    // Add Authorization header for iOS/Safari where 3rd-party cookies are blocked
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('advoai_token');
+        if (token) {
+            headers.set('Authorization', `Bearer ${token}`);
+        }
+    }
 
     return fetch(url, {
         ...options,

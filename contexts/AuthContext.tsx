@@ -70,8 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       const data = await safeJson(res);
-      if (res.ok) {
-        // Backend handles HttpOnly cookie
+      if (res.ok && data.token) {
+        localStorage.setItem('advoai_token', data.token);
         setUser(data.user as User);
         return { success: true };
       }
@@ -108,8 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       const data = await safeJson(res);
-      if (res.ok) {
-        // Backend handles HttpOnly cookie
+      if (res.ok && data.token) {
+        localStorage.setItem('advoai_token', data.token);
         setUser(data.user as User);
         return { success: true };
       }
@@ -130,8 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       const data = await safeJson(res);
-      if (res.ok) {
-        // Backend handles HttpOnly cookie
+      if (res.ok && data.token) {
+        localStorage.setItem('advoai_token', data.token);
         setUser(data.user as User);
         return { success: true };
       }
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Ignore errors on logout
     }
-    // Backend handles clearing HttpOnly cookie via /api/auth/logout
+    localStorage.removeItem('advoai_token');
     setUser(null);
   }
 
