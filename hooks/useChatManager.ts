@@ -46,9 +46,10 @@ function generateId(): string {
 function getFingerprint(): string {
   if (typeof window === 'undefined') return '';
   const stored = localStorage.getItem('advoai_fingerprint');
-  if (stored) return stored;
+  // Strip dashes so it passes backend hex-only regex ^[a-f0-9]{16,64}$
+  if (stored) return stored.replace(/-/g, '');
 
-  const fp = generateId();
+  const fp = generateId().replace(/-/g, '');
   localStorage.setItem('advoai_fingerprint', fp);
   return fp;
 }
