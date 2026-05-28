@@ -17,11 +17,11 @@ const merriweather = Merriweather({
 });
 
 export const metadata: Metadata = {
-  title: 'Project Yurika - Legal AI',
+  title: 'AdvoAI - Legal AI',
   description: 'AI-powered legal chatbot for Uzbekistan',
   icons: {
-    icon: '/yurika-logo.png',
-    apple: '/yurika-logo.png',
+    icon: '/advoai-logo.png',
+    apple: '/advoai-logo.png',
   },
 };
 

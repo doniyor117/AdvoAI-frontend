@@ -14,8 +14,8 @@ export type ChatSession = {
 
 // ── localStorage fallback for guest users ───────────────────
 
-const GUEST_SESSIONS_KEY = 'yurika_guest_sessions';
-const SESSIONS_EVENT = 'yurika_sessions_updated';
+const GUEST_SESSIONS_KEY = 'advoai_guest_sessions';
+const SESSIONS_EVENT = 'advoai_sessions_updated';
 
 function loadGuestSessions(): ChatSession[] {
   if (typeof window === 'undefined') return [];
@@ -119,13 +119,11 @@ export function useSessions() {
         setSessions(prev => [serverSession, ...prev]);
         return serverSession;
       }
+      throw new Error(`Failed to create session on server (${res.status})`);
     } catch (err) {
       console.error('Failed to create session:', err);
+      throw err;
     }
-
-    // Fallback: use client-side session
-    setSessions(prev => [session, ...prev]);
-    return session;
   }, [isAuthenticated, sessions, mapServerSession]);
 
   /** Rename a session. */
@@ -196,7 +194,7 @@ export function useSessions() {
       fetchSessions();
     }
     // Clean up local message cache
-    localStorage.removeItem(`yurika_chat_messages_${id}`);
+    localStorage.removeItem(`advoai_chat_messages_${id}`);
   }, [isAuthenticated, sessions, fetchSessions]);
 
   /** Force refresh from API. */

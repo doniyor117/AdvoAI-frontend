@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { authFetch, safeJson, setToken, clearToken } from '@/lib/authFetch';
+import { authFetch, safeJson } from '@/lib/authFetch';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await safeJson(res);
       if (res.ok) {
-        if (data.token) setToken(data.token as string);
+        // Backend handles HttpOnly cookie
         setUser(data.user as User);
         return { success: true };
       }
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await safeJson(res);
       if (res.ok) {
-        if (data.token) setToken(data.token as string);
+        // Backend handles HttpOnly cookie
         setUser(data.user as User);
         return { success: true };
       }
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await safeJson(res);
       if (res.ok) {
-        if (data.token) setToken(data.token as string);
+        // Backend handles HttpOnly cookie
         setUser(data.user as User);
         return { success: true };
       }
@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Ignore errors on logout
     }
-    clearToken();
+    // Backend handles clearing HttpOnly cookie via /api/auth/logout
     setUser(null);
   }
 

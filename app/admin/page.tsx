@@ -122,7 +122,7 @@ export default function AdminDashboard() {
             {/* Header */}
             <div>
                 <h1 className="text-2xl font-serif font-bold text-foreground">Dashboard</h1>
-                <p className="text-sm text-muted-foreground mt-1">Overview of your Yurika instance</p>
+                <p className="text-sm text-muted-foreground mt-1">Overview of your AdvoAI instance</p>
             </div>
 
             {/* Stats Grid */}

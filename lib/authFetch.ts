@@ -9,24 +9,9 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const TOKEN_KEY = 'yurika_token';
+const TOKEN_KEY = 'advoai_token';
 
-// ── Token helpers ────────────────────────────────────────────
-
-export function getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token: string): void {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearToken(): void {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(TOKEN_KEY);
-}
+// Token helpers removed. The backend sets an HttpOnly cookie automatically.
 
 // ── Safe JSON parser ─────────────────────────────────────────
 
@@ -73,16 +58,11 @@ export async function authFetch(
     const url = path.startsWith('http') ? path : `${API_URL}${path}`;
 
     // Debug: log the URL on first call so we can verify in prod console
-    if (typeof window !== 'undefined') {
+    if (process.env.NODE_ENV === 'development') {
         console.debug(`[authFetch] ${options.method || 'GET'} ${url}`);
     }
 
-    const token = getToken();
     const headers = new Headers(options.headers || {});
-
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
 
     return fetch(url, {
         ...options,

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { MessageSquare, Plus, Scale, X, PanelLeftClose, Search, Settings, User, LogOut, CreditCard, FileText, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { SettingsModal } from './SettingsModal';
@@ -26,18 +27,7 @@ function SessionMenu({ onDelete, onRename, onPin, isPinned }: { onDelete: (e: Re
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  useClickOutside([menuRef, buttonRef], () => setIsOpen(false), isOpen);
 
   useEffect(() => {
     if (isOpen && buttonRef.current) {
@@ -125,21 +115,10 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setIsProfileMenuOpen(false);
-        setIsLangMenuOpen(false);
-      }
-    };
-
-    if (isProfileMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isProfileMenuOpen]);
+  useClickOutside(profileMenuRef, () => {
+    setIsProfileMenuOpen(false);
+    setIsLangMenuOpen(false);
+  }, isProfileMenuOpen);
 
   const languages = [
     { code: 'en', label: 'English' },
@@ -226,7 +205,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
             >
               <div className="p-4 border-b border-black/5 dark:border-white/5 flex items-center justify-between min-w-[256px]">
                 <div className="flex items-center gap-3 text-primary dark:text-[#E6EDF3]">
-                  <Image src="/yurika-logo.png" alt="Yurika Logo" width={36} height={36} className="w-9 h-9 object-contain" referrerPolicy="no-referrer" />
+                  <Image src="/advoai-logo.png" alt="AdvoAI Logo" width={36} height={36} className="w-9 h-9 object-contain" referrerPolicy="no-referrer" />
                   <span className="text-lg font-bold text-slate-900 dark:text-white">{t('chatbot_name')}</span>
                 </div>
                 <button

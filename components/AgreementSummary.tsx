@@ -61,7 +61,7 @@ export function AgreementSummary({ isSidebarOpen, setIsSidebarOpen }: AgreementS
           )}
           {isSidebarOpen && (
             <button 
-              onClick={() => setIsSidebarOpen(true)}
+              onClick={() => setIsSidebarOpen(false)}
               className="p-1.5 text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors md:hidden active:scale-95"
               aria-label="Open sidebar"
             >
@@ -113,14 +113,10 @@ export function AgreementSummary({ isSidebarOpen, setIsSidebarOpen }: AgreementS
                 <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 text-slate-400 dark:text-slate-500">
                   <Plus className="w-8 h-8" />
                 </div>
-                <p className="text-slate-800 dark:text-[#E6EDF3] font-medium mb-1 text-center">
-                  Drag & Drop files
-                </p>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 text-center">
-                  or browse files on your device
-                </p>
                 <label className="cursor-pointer">
-                  <span className="sr-only">Browse files</span>
+                  <span className="text-primary hover:underline font-medium">
+                    Drag & drop files or browse files on your device
+                  </span>
                   <input 
                     type="file" 
                     className="hidden" 

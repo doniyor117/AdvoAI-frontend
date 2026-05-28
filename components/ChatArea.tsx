@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MessageBubble } from './MessageBubble';
 import { Message, Citation } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSessions } from '@/hooks/useSessions';
 import { useRouter, useParams } from 'next/navigation';
@@ -132,20 +133,11 @@ export function ChatArea({
   const [greeting, setGreeting] = useState('');
 
   useEffect(() => {
+    if (messages.length > 0) return;
     setGreeting(getGreeting());
   }, [messages.length, getGreeting]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (titleMenuRef.current && !titleMenuRef.current.contains(event.target as Node)) {
-        setIsTitleMenuOpen(false);
-      }
-    };
-    if (isTitleMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isTitleMenuOpen]);
+  useClickOutside(titleMenuRef, () => setIsTitleMenuOpen(false), isTitleMenuOpen);
 
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
@@ -155,7 +147,7 @@ export function ChatArea({
   };
 
   const scrollToBottom = (force = false) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: force ? 'instant' : 'smooth' });
   };
 
   useEffect(() => {
@@ -310,21 +302,20 @@ export function ChatArea({
                 <Menu className="w-5 h-5 md:hidden" />
               </button>
             )}
-            {isSidebarOpen && (
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-1.5 text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors md:hidden active:scale-95 flex-shrink-0"
-                aria-label="Open sidebar"
-              >
+            {isSidebarOpen && <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 transition-colors md:hidden mr-2"
+                  aria-label="Close sidebar"
+                >
                 <Menu className="w-5 h-5" />
               </button>
-            )}
+            }
 
             {/* Branding / Title Logic */}
             {messages.length === 0 ? (
               !isSidebarOpen && (
                 <div className="flex items-center gap-3 text-slate-900 dark:text-[#E6EDF3] flex-1 justify-center md:justify-start pr-8 md:pr-0">
-                  <Image src="/yurika-logo.png" alt="Yurika Logo" width={36} height={36} className="w-9 h-9 object-contain" referrerPolicy="no-referrer" />
+                  <Image src="/advoai-logo.png" alt="AdvoAI Logo" width={36} height={36} className="w-9 h-9 object-contain" referrerPolicy="no-referrer" />
                   <span className="text-lg font-bold text-slate-900 dark:text-white">{t('chatbot_name')}</span>
                 </div>
               )
@@ -480,7 +471,7 @@ export function ChatArea({
       </div>
 
       {/* Input Area (Sticky Bottom when messages exist OR on mobile when empty) */}
-      {(messages.length > 0 || true) && (
+        {(messages.length > 0) && (
         <div className={`absolute bottom-0 left-0 right-0 p-4 flex-shrink-0 z-20 pb-6 pointer-events-none ${messages.length === 0 ? 'block md:hidden' : 'block'}`}>
           <div className="pointer-events-auto">
             {renderInputArea(false)}

@@ -47,7 +47,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <Scale className="size-4" />
                     </div>
                     <div>
-                        <span className="font-serif font-semibold text-sm">Yurika</span>
+                        <span className="font-serif font-semibold text-sm">AdvoAI</span>
                         <span className="text-xs text-muted-foreground ml-1.5">Admin</span>
                     </div>
                 </div>

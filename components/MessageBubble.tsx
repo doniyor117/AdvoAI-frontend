@@ -20,24 +20,12 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
 
   const handleCopy = async () => {
     try {
-      // navigator.clipboard is only available in secure contexts (HTTPS)
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(message.text);
-      } else {
-        // Fallback for HTTP environments
-        const textarea = document.createElement('textarea');
-        textarea.value = message.text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-      }
+      await navigator.clipboard.writeText(message.text);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     } catch {
-      console.warn('Copy failed');
+      // Clipboard API requires a secure context (HTTPS)
+      console.warn('[MessageBubble] Copy failed — secure context required');
     }
   };
 
@@ -74,7 +62,7 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
           </div>
         )}
 
-        {/* Action Buttons for Yurika */}
+        {/* Action Buttons for AdvoAI */}
         {!isUser && (
           <div className="mt-4 flex items-center gap-1 opacity-100 transition-opacity">
             <button

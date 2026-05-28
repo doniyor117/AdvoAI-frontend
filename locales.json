@@ -1,6 +1,6 @@
 {
   "en": {
-    "chatbot_name": "Yurika",
+    "chatbot_name": "AdvoAI",
     "chat": {
       "welcome_messages_generic": [
         "What's on your plan today?",
@@ -116,7 +116,7 @@
     }
   },
   "uz": {
-    "chatbot_name": "Yurika",
+    "chatbot_name": "AdvoAI",
     "chat": {
       "welcome_messages_generic": [
         "Bugun rejangizda nima bor?",
@@ -232,7 +232,7 @@
     }
   },
   "ru": {
-    "chatbot_name": "Юрика",
+    "chatbot_name": "AdvoAI",
     "chat": {
       "welcome_messages_generic": [
         "Какие у вас планы на сегодня?",

@@ -1,6 +1,6 @@
-# Yurika Frontend
+# AdvoAI Frontend
 
-**Next.js 15 frontend for the Yurika AI Legal Assistant.**
+**Next.js 15 frontend for the AdvoAI Legal Assistant.**
 
 A modern, responsive legal chat interface with trilingual support (EN/UZ/RU), dark/light themes, an admin panel, and a premium glassmorphism design.
 

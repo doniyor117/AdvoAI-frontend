@@ -13,9 +13,10 @@ export type Citation = {
 
 export type Message = {
   id: string;
-  role: 'user' | 'yurika';
+  role: 'user' | 'assistant';
   text: string;
   citations?: Citation[];
+  isError?: boolean;
 };
 
 // ── Fingerprint (simple hash for guest tracking) ────────────
@@ -32,13 +33,17 @@ function generateId(): string {
 
 function getFingerprint(): string {
   if (typeof window === 'undefined') return '';
-  const stored = localStorage.getItem('yurika_fingerprint');
+  const stored = localStorage.getItem('advoai_fingerprint');
   if (stored) return stored;
 
   const fp = generateId();
-  localStorage.setItem('yurika_fingerprint', fp);
+  localStorage.setItem('advoai_fingerprint', fp);
   return fp;
 }
+
+// Module-level cache to persist sidebar state across route navigations
+// without causing a hydration mismatch on the initial page load.
+let cachedSidebarState: boolean | null = null;
 
 export function useChatManager(chatId?: string) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -50,26 +55,45 @@ export function useChatManager(chatId?: string) {
   const [activeFeature, setActiveFeature] = useState<'chat' | 'agreement_summary'>('chat');
   const [sessionId, setSessionId] = useState<string | null>(null);
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    if (cachedSidebarState !== null) return cachedSidebarState;
+    return false; // Initial hydration must match server (false)
+  });
   const isFirstRender = useRef(true);
+  const pendingProcessed = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('yurika_sidebar_open');
+    if (cachedSidebarState === null && typeof window !== 'undefined') {
+      const saved = localStorage.getItem('advoai_sidebar_open');
+      let nextState = false;
       if (saved !== null) {
-        setIsSidebarOpen(saved === 'true');
+        nextState = saved === 'true';
       } else {
-        setIsSidebarOpen(window.innerWidth >= 768);
+        nextState = window.innerWidth >= 768;
       }
+      setIsSidebarOpen(nextState);
+      cachedSidebarState = nextState;
     }
   }, []);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      cachedSidebarState = isSidebarOpen;
+      localStorage.setItem('advoai_sidebar_open', String(isSidebarOpen));
+    }
+  }, [isSidebarOpen]);
 
   const router = useRouter();
   const { addSession, sessions } = useSessions();
   const { isAuthenticated } = useAuth();
   const isNavigatingRef = useRef(false);
 
-  const storageKey = chatId ? `yurika_chat_messages_${chatId}` : null;
+  const storageKey = chatId ? `advoai_chat_messages_${chatId}` : null;
   const currentSession = sessions.find(s => s.id === chatId);
   const chatTitle = currentSession?.title || '';
 
@@ -79,7 +103,7 @@ export function useChatManager(chatId?: string) {
         isFirstRender.current = false;
         return;
       }
-      localStorage.setItem('yurika_sidebar_open', String(isSidebarOpen));
+      localStorage.setItem('advoai_sidebar_open', String(isSidebarOpen));
     }
   }, [isSidebarOpen]);
 
@@ -101,7 +125,7 @@ export function useChatManager(chatId?: string) {
         setSessionId(chatId);
       } else {
         // Guest: restore from localStorage mapping
-        const savedSessionId = localStorage.getItem(`yurika_session_${chatId}`);
+        const savedSessionId = localStorage.getItem(`advoai_session_${chatId}`);
         if (savedSessionId) setSessionId(savedSessionId);
       }
     } else {
@@ -127,7 +151,9 @@ export function useChatManager(chatId?: string) {
   ): Promise<{
     answer: string;
     citations: Citation[];
+    sources?: Citation[];
     session_id: string | null;
+    error?: string;
   }> => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -167,6 +193,7 @@ export function useChatManager(chatId?: string) {
     return {
       answer: data.answer,
       citations,
+      sources: citations,
       session_id: data.session_id || null,
     };
   }, []);
@@ -176,7 +203,7 @@ export function useChatManager(chatId?: string) {
 
     const trimmed = text.trim();
     const newUserMsg: Message = {
-      id: Date.now().toString(),
+      id: generateId(),
       role: 'user',
       text: trimmed,
     };
@@ -190,14 +217,13 @@ export function useChatManager(chatId?: string) {
       const tempTitle = trimmed.substring(0, 30) + (trimmed.length > 30 ? '...' : '');
 
       // Create session (async for auth users → server UUID, sync for guests → timestamp)
-      const guestFallbackId = Date.now().toString();
+      const guestFallbackId = generateId();
 
       // Optimistic: prepare for navigation
       setInputValue('');
-      setMessages([newUserMsg]);
 
       // Store pending question for after redirect
-      localStorage.setItem('yurika_pending_question', trimmed);
+      localStorage.setItem('advoai_pending_question', trimmed);
 
       (async () => {
         try {
@@ -207,16 +233,20 @@ export function useChatManager(chatId?: string) {
             timestamp: Date.now(),
           });
           currentChatId = created.id; // Server UUID for auth, guestFallbackId for guest
-        } catch {
-          currentChatId = guestFallbackId;
+        } catch (err) {
+          console.error("Failed to create chat session", err);
+          setInputValue(trimmed);
+          isNavigatingRef.current = false;
+          alert("Failed to create chat. Please check your connection or try again.");
+          return;
         }
 
         // Save the user message under the new chat ID
         localStorage.setItem(
-          `yurika_chat_messages_${currentChatId}`,
+          `advoai_chat_messages_${currentChatId}`,
           JSON.stringify([newUserMsg]),
         );
-        localStorage.setItem('yurika_pending_chat_id', currentChatId);
+        localStorage.setItem('advoai_pending_chat_id', currentChatId);
 
         startTransition(() => {
           router.push(`/chat/${currentChatId}`);
@@ -237,23 +267,24 @@ export function useChatManager(chatId?: string) {
           setSessionId(result.session_id);
           // Guest: save mapping
           if (!isAuthenticated) {
-            localStorage.setItem(`yurika_session_${currentChatId}`, result.session_id);
+            localStorage.setItem(`advoai_session_${currentChatId}`, result.session_id);
           }
         }
 
-        const yurikaMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'yurika',
+        const assistantMsg: Message = {
+          id: generateId(),
+          role: 'assistant',
           text: result.answer,
-          citations: result.citations.length > 0 ? result.citations : undefined,
+          citations: result.sources || [],
         };
-        setMessages(prev => [...prev, yurikaMsg]);
+        setMessages(prev => [...prev, assistantMsg]);
       })
       .catch(err => {
         const errorMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'yurika',
+          id: generateId(),
+          role: 'assistant',
           text: `⚠️ ${err.message || 'An error occurred. Please try again.'}`,
+          isError: true,
         };
         setMessages(prev => [...prev, errorMsg]);
       })
@@ -264,14 +295,15 @@ export function useChatManager(chatId?: string) {
 
   // Handle pending question after redirect (new chat flow)
   useEffect(() => {
-    if (!isHydrated || !chatId) return;
+    if (!isHydrated || !chatId || pendingProcessed.current) return;
 
-    const pendingQuestion = localStorage.getItem('yurika_pending_question');
-    const pendingChatId = localStorage.getItem('yurika_pending_chat_id');
+    const pendingQuestion = localStorage.getItem('advoai_pending_question');
+    const pendingChatId = localStorage.getItem('advoai_pending_chat_id');
 
     if (pendingQuestion && pendingChatId === chatId) {
-      localStorage.removeItem('yurika_pending_question');
-      localStorage.removeItem('yurika_pending_chat_id');
+      pendingProcessed.current = true;
+      localStorage.removeItem('advoai_pending_question');
+      localStorage.removeItem('advoai_pending_chat_id');
 
       // For auth users, the chatId is the server session UUID
       const backendSessionId = isAuthenticated ? chatId : null;
@@ -282,23 +314,24 @@ export function useChatManager(chatId?: string) {
           if (result.session_id) {
             setSessionId(result.session_id);
             if (!isAuthenticated) {
-              localStorage.setItem(`yurika_session_${chatId}`, result.session_id);
+              localStorage.setItem(`advoai_session_${chatId}`, result.session_id);
             }
           }
 
-          const yurikaMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            role: 'yurika',
+          const assistantMsg: Message = {
+            id: generateId(),
+            role: 'assistant',
             text: result.answer,
-            citations: result.citations.length > 0 ? result.citations : undefined,
+            citations: result.sources || [],
           };
-          setMessages(prev => [...prev, yurikaMsg]);
+          setMessages(prev => [...prev, assistantMsg]);
         })
         .catch(err => {
           const errorMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            role: 'yurika',
+            id: generateId(),
+            role: 'assistant',
             text: `⚠️ ${err.message || 'An error occurred. Please try again.'}`,
+            isError: true,
           };
           setMessages(prev => [...prev, errorMsg]);
         })

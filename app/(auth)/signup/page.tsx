@@ -80,7 +80,7 @@ export default function SignupPage() {
                         <div className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-lg">
                             <Scale className="size-4" />
                         </div>
-                        <span className="font-serif text-lg">Yurika</span>
+                        <span className="font-serif text-lg">AdvoAI</span>
                     </Link>
                 </div>
 

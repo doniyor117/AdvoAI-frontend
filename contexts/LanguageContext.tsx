@@ -20,7 +20,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
-    const savedLang = localStorage.getItem('yurika_lang') as Language;
+    const savedLang = localStorage.getItem('advoai_lang') as Language;
     if (savedLang && ['en', 'uz', 'ru'].includes(savedLang)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLangState(savedLang);
@@ -29,7 +29,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
 
   const setLang = (newLang: Language) => {
     setLangState(newLang);
-    localStorage.setItem('yurika_lang', newLang);
+    localStorage.setItem('advoai_lang', newLang);
   };
 
   const t = (key: string, params?: Record<string, string>) => {

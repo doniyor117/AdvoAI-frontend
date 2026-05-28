@@ -73,7 +73,7 @@ export default function LoginPage() {
                         <div className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-lg">
                             <Scale className="size-4" />
                         </div>
-                        <span className="font-serif text-lg">Yurika</span>
+                        <span className="font-serif text-lg">AdvoAI</span>
                     </Link>
                 </div>
 
@@ -82,7 +82,7 @@ export default function LoginPage() {
                         <Card className="border-0 shadow-none bg-transparent">
                             <CardHeader className="text-center px-0">
                                 <CardTitle className="text-2xl font-serif">Welcome back</CardTitle>
-                                <CardDescription>Sign in to your Yurika account</CardDescription>
+                                <CardDescription>Sign in to your AdvoAI account</CardDescription>
                             </CardHeader>
 
                             <CardContent className="px-0">
@@ -183,13 +183,6 @@ export default function LoginPage() {
 
             {/* Right: Cover */}
             <div className="relative hidden lg:block bg-primary">
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-primary-foreground">
-                    <Scale className="size-16 mb-6 opacity-80" />
-                    <h2 className="text-3xl font-serif font-bold mb-3 text-center">Legal Intelligence, Simplified</h2>
-                    <p className="text-center text-primary-foreground/70 max-w-md text-lg">
-                        Access Uzbekistan&apos;s legal framework with AI-powered research, citations, and expert analysis.
-                    </p>
-                </div>
                 {/* Decorative gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/80" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-primary-foreground z-10">

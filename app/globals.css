@@ -5,15 +5,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ── Yurika Font Tokens ─────────────────────────────────────── */
+/* ── AdvoAI Font Tokens ─────────────────────────────────────── */
 @theme {
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  /* Legacy Yurika token — used by existing components (ChatArea, Sidebar, etc.) */
+  /* Legacy AdvoAI token — used by existing components (ChatArea, Sidebar, etc.) */
   --color-primary-hover: #0d3052;
 }
 
-/* ── Yurika Custom Utilities ────────────────────────────────── */
+/* ── AdvoAI Custom Utilities ────────────────────────────────── */
 .animate-marquee {
   animation: marquee 120s linear infinite;
 }
