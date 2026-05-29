@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Monitor, Moon, Sun, Loader2, Check, Eye, EyeOff } from 'lucide-react';
+import { X, Monitor, Moon, Sun, Loader2, Check, Eye, EyeOff, Download, Smartphone } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { authFetch, safeJson } from '@/lib/authFetch';
 
 interface SettingsModalProps {
@@ -47,9 +48,20 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState('');
 
-  const { triggerGoogleLogin, isAvailable: isGoogleAvailable } = useGoogleAuth({
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const { renderGoogleButton, isAvailable: isGoogleAvailable } = useGoogleAuth({
     onCredential: handleLinkGoogle,
   });
+
+  const { isInstallable, isInstalled, promptInstall } = usePWAInstall();
+
+  useEffect(() => {
+    if (activeTab === 'security' && isGoogleAvailable && googleButtonRef.current) {
+        setTimeout(() => {
+            if (googleButtonRef.current) renderGoogleButton(googleButtonRef.current);
+        }, 100);
+    }
+  }, [activeTab, isGoogleAvailable, renderGoogleButton]);
 
   async function handleUpdatePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -302,6 +314,43 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         ))}
                       </div>
                     </section>
+
+                    {/* App Installation Section */}
+                    <section>
+                      <h3 className="text-xs md:text-sm font-semibold text-slate-900 dark:text-[#E6EDF3] mb-3 md:mb-4 uppercase tracking-wider">
+                        App Installation
+                      </h3>
+                      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0D1117] flex flex-col gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                            <Download className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-slate-900 dark:text-[#E6EDF3]">Install AdvoAI</h4>
+                            <p className="text-xs text-slate-500">Download the app for quick access from your home screen.</p>
+                          </div>
+                        </div>
+
+                        {isInstalled ? (
+                          <div className="text-sm font-medium text-emerald-600 flex items-center gap-2 mt-2">
+                            <Check className="w-4 h-4" /> App is already installed!
+                          </div>
+                        ) : isInstallable ? (
+                          <button
+                            onClick={promptInstall}
+                            className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                          >
+                            <Download className="w-4 h-4" />
+                            Install App
+                          </button>
+                        ) : (
+                          <div className="mt-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs flex items-start gap-2 border border-blue-100 dark:border-blue-900/50">
+                            <Smartphone className="w-4 h-4 mt-0.5 shrink-0" />
+                            <p>To install on iOS Safari, tap the <strong>Share</strong> button at the bottom of the screen, then select <strong>Add to Home Screen</strong>.</p>
+                          </div>
+                        )}
+                      </div>
+                    </section>
                   </div>
                 )}
 
@@ -480,9 +529,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             {t('settings.disconnect') as string || 'Disconnect'}
                           </button>
                         ) : (
-                          <button onClick={triggerGoogleLogin} disabled={googleLoading || !isGoogleAvailable} className="px-3 py-1.5 text-sm border rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                            {t('settings.connect') as string || 'Connect'}
-                          </button>
+                          <div className="flex justify-center">
+                            {!isGoogleAvailable || googleLoading ? (
+                                <button disabled className="px-3 py-1.5 text-sm border rounded-md opacity-50 cursor-not-allowed">
+                                  {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (t('settings.connect') as string || 'Connect')}
+                                </button>
+                            ) : (
+                                <div ref={googleButtonRef} />
+                            )}
+                          </div>
                         )}
                       </div>
                     </section>

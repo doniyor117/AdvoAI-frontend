@@ -223,6 +223,7 @@ export function ChatArea({
     
     lastMessageId.current = currentLastId;
     prevIsLoading.current = isLoading;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, isLoading]);
 
   const onSubmit = (e?: React.FormEvent) => {
@@ -263,6 +264,7 @@ export function ChatArea({
                   {file.is_uploading ? (
                     <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                   ) : file.mime_type?.startsWith('image/') && file.local_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={file.local_url} alt={file.display_name} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-[9px] font-bold uppercase tracking-wider">{file.display_name.split('.').pop()?.slice(0, 4) || 'DOC'}</span>

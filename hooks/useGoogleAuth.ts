@@ -83,25 +83,25 @@ export function useGoogleAuth({ onCredential }: UseGoogleAuthOptions) {
         }
     }, [onCredential]);
 
-    const triggerGoogleLogin = useCallback(() => {
+    const renderGoogleButton = useCallback((element: HTMLElement) => {
         if (!GOOGLE_CLIENT_ID) {
             console.warn('Google Client ID not configured');
             return;
         }
         if (window.google?.accounts?.id) {
-            window.google.accounts.id.prompt((notification) => {
-                // If One Tap is not displayed (e.g. user dismissed it before),
-                // we fall back to a rendered button approach — but prompt() is the
-                // simplest path and works in most cases.
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                    console.log('Google One Tap was not displayed or skipped. User may need to clear cookies or try again.');
-                }
+            window.google.accounts.id.renderButton(element, {
+                type: 'standard',
+                theme: 'outline',
+                size: 'large',
+                text: 'continue_with',
+                shape: 'rectangular',
+                width: '100%' // Set to 100% to fill container or let it auto-size
             });
         }
     }, []);
 
     return {
-        triggerGoogleLogin,
+        renderGoogleButton,
         isAvailable: !!GOOGLE_CLIENT_ID,
     };
 }

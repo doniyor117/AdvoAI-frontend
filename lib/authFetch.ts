@@ -20,7 +20,6 @@ const TOKEN_KEY = 'advoai_token';
  * If the server returned HTML (e.g. HF standby page, 502, or 404),
  * this throws a clear error instead of crashing on invalid JSON.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function safeJson(res: Response): Promise<any> {
     const contentType = res.headers.get('content-type') || '';
 

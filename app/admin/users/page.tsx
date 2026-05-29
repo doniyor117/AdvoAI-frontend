@@ -150,7 +150,7 @@ export default function AdminUsersPage() {
     return (
         <div className="p-6 md:p-8 space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-serif font-bold text-foreground">Users</h1>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -160,8 +160,8 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Users Table */}
-            <Card>
-                <CardContent className="p-0">
+            <Card className="overflow-hidden border-border/50">
+                <CardContent className="p-0 overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
