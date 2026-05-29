@@ -299,7 +299,7 @@ export function ChatArea({
           </div>
         </div>
       </form>
-      <div className="text-center mt-1 md:mt-3 text-[10px] md:text-xs leading-tight md:leading-normal text-neutral-500 hidden md:block">
+      <div className="text-center text-[8px] md:text-xs text-neutral-400 dark:text-neutral-600 mt-1.5 md:mt-3 px-2 leading-tight md:leading-normal">
         {t('chat.footer_disclaimer', { chatbot_name: t('chatbot_name') })}
       </div>
     </div>
@@ -498,7 +498,7 @@ export function ChatArea({
             </div>
           </motion.div>
         ) : (
-          <div className="max-w-4xl mx-auto w-full space-y-0 flex-1 pb-32">
+          <div className="max-w-4xl mx-auto w-full space-y-0 flex-1 pb-24 md:pb-32">
             {messages.map((msg) => (
               <MessageBubble 
                 key={msg.id} 
@@ -516,9 +516,18 @@ export function ChatArea({
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="flex flex-col justify-start py-4 md:py-6 mb-2 md:mb-0"
                 >
-                  <div className="bg-transparent text-slate-500 dark:text-slate-400 flex items-center gap-3">
-                    <Scale className="w-5 h-5 text-slate-900 dark:text-white animate-pulse" />
-                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{t('chat.processing', { chatbot_name: t('chatbot_name') })}</span>
+                  <div className="bg-transparent text-slate-500 dark:text-slate-400 flex items-center gap-3 pl-1 md:pl-0">
+                    <Image src="/advoai-logo.png" alt="AdvoAI Logo" width={24} height={24} className="w-6 h-6 object-contain animate-pulse" referrerPolicy="no-referrer" unoptimized />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                        {t('chat.processing', { chatbot_name: t('chatbot_name') })}
+                      </span>
+                      <div className="flex space-x-1 mt-1">
+                        <div className="w-1 h-1 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '-0.3s' }}></div>
+                        <div className="w-1 h-1 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '-0.15s' }}></div>
+                        <div className="w-1 h-1 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce"></div>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               )}
