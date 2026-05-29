@@ -35,7 +35,7 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      className={`flex flex-col w-full border-b border-slate-100 dark:border-white/5 py-6 last:border-b-0 ${isUser ? 'items-end' : 'items-start'}`}
+      className={`flex flex-col w-full py-4 md:py-6 ${isUser ? 'items-end' : 'items-start'}`}
     >
       <div className={`${isUser
           ? 'w-fit max-w-[85%] md:max-w-2xl bg-secondary text-secondary-foreground rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm'
