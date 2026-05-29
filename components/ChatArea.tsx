@@ -187,8 +187,22 @@ export function ChatArea({
     messagesEndRef.current?.scrollIntoView({ behavior: force ? 'instant' : 'smooth' });
   };
 
+  const prevIsLoading = useRef(isLoading);
+  const lastMessageId = useRef<string | undefined>(undefined);
+
   useEffect(() => {
-    scrollToBottom();
+    const currentLastId = messages.length > 0 ? messages[messages.length - 1].id : undefined;
+    const isNewMessageId = currentLastId !== lastMessageId.current && currentLastId !== undefined;
+    const isStartedLoading = isLoading && !prevIsLoading.current;
+
+    if (isNewMessageId || isStartedLoading) {
+      const isInitial = lastMessageId.current === undefined;
+      // Slight delay to ensure DOM is ready
+      setTimeout(() => scrollToBottom(isInitial), 50);
+    }
+    
+    lastMessageId.current = currentLastId;
+    prevIsLoading.current = isLoading;
   }, [messages, isLoading]);
 
   const onSubmit = (e?: React.FormEvent) => {
