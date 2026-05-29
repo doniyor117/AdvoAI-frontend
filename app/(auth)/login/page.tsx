@@ -36,18 +36,15 @@ export default function LoginPage() {
     }, [loginWithGoogle, router]);
 
     const googleButtonRef = useRef<HTMLDivElement>(null);
-    const { renderGoogleButton, isAvailable: isGoogleAvailable } = useGoogleAuth({
+    const { renderGoogleButton, isAvailable: isGoogleAvailable, isLoaded } = useGoogleAuth({
         onCredential: handleGoogleCredential,
     });
 
     useEffect(() => {
-        if (isGoogleAvailable && googleButtonRef.current) {
-            // Give GIS a tiny moment to ensure script is fully ready
-            setTimeout(() => {
-                if (googleButtonRef.current) renderGoogleButton(googleButtonRef.current);
-            }, 100);
+        if (isGoogleAvailable && isLoaded && googleButtonRef.current) {
+            renderGoogleButton(googleButtonRef.current);
         }
-    }, [isGoogleAvailable, renderGoogleButton]);
+    }, [isGoogleAvailable, isLoaded, renderGoogleButton]);
 
     // Redirect if already authenticated
     useEffect(() => {
@@ -164,7 +161,7 @@ export default function LoginPage() {
                                     </div>
 
                                     <div className="w-full min-h-[44px] flex justify-center items-center">
-                                        {!isGoogleAvailable || isGoogleLoading ? (
+                                        {!isGoogleAvailable || isGoogleLoading || !isLoaded ? (
                                             <Button variant="outline" type="button" className="w-full" disabled>
                                                 {isGoogleLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
                                                 Continue with Google

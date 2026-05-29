@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 
 /**
  * Hook that loads Google Identity Services and provides a trigger function.
@@ -29,6 +29,7 @@ interface UseGoogleAuthOptions {
 }
 
 export function useGoogleAuth({ onCredential }: UseGoogleAuthOptions) {
+    const [isLoaded, setIsLoaded] = useState(false);
     const scriptLoaded = useRef(false);
     const initialized = useRef(false);
 
@@ -49,6 +50,7 @@ export function useGoogleAuth({ onCredential }: UseGoogleAuthOptions) {
         script.defer = true;
         script.onload = () => {
             scriptLoaded.current = true;
+            setIsLoaded(true);
         };
         document.head.appendChild(script);
     }, []);
@@ -67,6 +69,7 @@ export function useGoogleAuth({ onCredential }: UseGoogleAuthOptions) {
                     },
                     auto_select: false,
                     cancel_on_tap_outside: true,
+                    use_fedcm_for_prompt: true,
                 });
                 initialized.current = true;
             }
@@ -102,6 +105,7 @@ export function useGoogleAuth({ onCredential }: UseGoogleAuthOptions) {
 
     return {
         renderGoogleButton,
+        isLoaded,
         isAvailable: !!GOOGLE_CLIENT_ID,
     };
 }
