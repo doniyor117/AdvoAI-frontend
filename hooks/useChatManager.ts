@@ -124,17 +124,51 @@ export function useChatManager(chatId?: string) {
 
   // Load messages from localStorage on mount or when chatId changes
   useEffect(() => {
-    if (chatId) {
+    async function loadMessages() {
+      if (!chatId) {
+        setMessages([]);
+        setSessionId(null);
+        setIsHydrated(true);
+        setIsLoading(false);
+        isNavigatingRef.current = false;
+        return;
+      }
+
+      // 1. Try local storage first (it has citations/attachments)
       const saved = localStorage.getItem(storageKey!);
       if (saved) {
         try {
           setMessages(JSON.parse(saved));
         } catch (e) {
           console.error('Failed to parse saved messages', e);
+          setMessages([]);
         }
       } else {
         setMessages([]);
+        
+        // 2. If empty and authenticated, fallback to fetching history from backend
+        if (isAuthenticated) {
+          try {
+            const res = await authFetch(`/api/sessions/${chatId}/messages`);
+            if (res.ok) {
+              const data = await safeJson(res);
+              if (data.messages && data.messages.length > 0) {
+                // Map backend messages to frontend format
+                const history = data.messages.map((m: any) => ({
+                  role: m.role,
+                  content: m.content,
+                }));
+                setMessages(history);
+                // Save to local storage for future use
+                localStorage.setItem(storageKey!, JSON.stringify(history));
+              }
+            }
+          } catch (e) {
+            console.error('Failed to fetch chat history from backend', e);
+          }
+        }
       }
+
       // For auth users, the chatId IS the backend session ID (UUID)
       if (isAuthenticated) {
         setSessionId(chatId);
@@ -143,13 +177,13 @@ export function useChatManager(chatId?: string) {
         const savedSessionId = localStorage.getItem(`advoai_session_${chatId}`);
         if (savedSessionId) setSessionId(savedSessionId);
       }
-    } else {
-      setMessages([]);
-      setSessionId(null);
+      
+      setIsHydrated(true);
+      setIsLoading(false);
+      isNavigatingRef.current = false;
     }
-    setIsHydrated(true);
-    setIsLoading(false);
-    isNavigatingRef.current = false;
+    
+    loadMessages();
   }, [chatId, storageKey, isAuthenticated]);
 
   // Save to localStorage when messages change (client-side cache)
