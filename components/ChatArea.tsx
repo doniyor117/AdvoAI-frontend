@@ -101,7 +101,7 @@ export function ChatArea({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRandomPrompts(shuffled.slice(0, 3));
     }
-  }, [t]);
+  }, [t, currentChatId]);
   // ── Dynamic greeting logic ───────────────────────────────
   const firstName = (() => {
     if (!user?.full_name) return '';
@@ -527,14 +527,11 @@ export function ChatArea({
                       className="group flex items-center gap-2 bg-transparent rounded-xl px-3 py-1.5 text-sm font-medium text-slate-500 dark:text-zinc-400 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200 transition-all duration-200 cursor-pointer w-full md:w-auto justify-center md:justify-start"
                     >
                       {prompt}
-                      <CornerDownLeft className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity hidden md:block" />
+                      <CornerDownLeft className="w-3.5 h-3.5 opacity-30 group-hover:opacity-70 transition-opacity" />
                     </button>
                   ))}
                 </motion.div>
               )}
-              <motion.div variants={itemVariants} className="text-center text-[10px] md:text-xs text-neutral-400 dark:text-neutral-500 mt-8 px-4">
-                {t('chat.footer_disclaimer', { chatbot_name: t('chatbot_name') })}
-              </motion.div>
             </div>
           </motion.div>
         ) : (
