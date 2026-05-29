@@ -434,17 +434,17 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
                               <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2" />
 
                               {isAdmin && (
-                                <button
+                                <Link
+                                  href="/admin"
                                   onClick={() => {
                                     setIsProfileMenuOpen(false);
                                     setIsOpen(false);
-                                    router.push('/admin');
                                   }}
                                   className="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors"
                                 >
                                   <Shield className="w-4 h-4 text-primary dark:text-[#1F6FEB]" />
                                   <span>Admin Panel</span>
-                                </button>
+                                </Link>
                               )}
 
                               <button

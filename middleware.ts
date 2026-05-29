@@ -9,11 +9,17 @@ export function middleware(request: NextRequest) {
 
   // Decode JWT payload (no verification — just to read the role claim)
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    let base64Url = token.split('.')[1];
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padLength = (4 - (base64.length % 4)) % 4;
+    base64 += '='.repeat(padLength);
+
+    const payload = JSON.parse(atob(base64));
     if (payload.role !== 'admin') {
       return NextResponse.redirect(new URL('/', request.url));
     }
-  } catch {
+  } catch (err) {
+    console.error('Middleware JWT decode error:', err);
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
