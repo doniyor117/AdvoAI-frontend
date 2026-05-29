@@ -62,23 +62,25 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
           </div>
         )}
 
-        <div className={`prose max-w-none break-words ${isUser ? 'prose-sm md:prose-base prose-slate dark:prose-invert prose-p:my-0 prose-headings:my-0 font-sans font-medium text-slate-700 dark:text-slate-200' : 'prose-slate dark:prose-invert font-serif text-base md:text-lg leading-[1.7] prose-p:mb-6 prose-ul:mb-6 prose-ol:mb-6'}`}>
+        <div className={`prose max-w-none break-words ${isUser ? 'prose-sm md:prose-base prose-slate dark:prose-invert prose-p:my-0 prose-headings:my-0 font-sans font-medium text-slate-700 dark:text-slate-200' : 'prose-slate dark:prose-invert font-serif text-base md:text-lg leading-[1.6] md:leading-[1.7] prose-p:mb-6 prose-ul:mb-6 prose-ol:mb-6'}`}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.text}
           </ReactMarkdown>
         </div>
 
         {message.citations && message.citations.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5 flex flex-wrap gap-2">
+          <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5 flex flex-col md:flex-row flex-wrap gap-2">
             {message.citations.map((cit, index) => (
               <button
                 key={`${cit.id}-${index}`}
                 onClick={() => onCitationClick(cit)}
-                className="flex items-center gap-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/20 text-accent font-medium text-xs px-2.5 py-1.5 rounded-md transition-colors shadow-sm"
+                className="flex items-center justify-between md:justify-start gap-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/20 text-accent font-medium w-full md:w-auto text-xs md:text-sm px-3 py-2 md:px-2.5 md:py-1.5 rounded-md transition-colors shadow-sm"
               >
-                <FileText className="w-3.5 h-3.5" />
-                {t('chat.cite')}: {cit.title.split(',')[1]?.trim() || cit.title}
-                <ChevronRight className="w-3.5 h-3.5 ml-0.5 opacity-70" />
+                <div className="flex items-center gap-1.5 truncate">
+                  <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">{t('chat.cite')}: {cit.title.split(',')[1]?.trim() || cit.title}</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 ml-0.5 opacity-70 flex-shrink-0" />
               </button>
             ))}
           </div>

@@ -198,7 +198,7 @@ export function ChatArea({
   };
 
   const renderInputArea = (isCentered: boolean) => (
-    <div className={`w-full max-w-4xl mx-auto relative px-4 ${isCentered ? 'mt-4' : ''}`}>
+    <div className={`w-full max-w-4xl mx-auto relative ${!isCentered ? 'px-0 md:px-4' : 'px-4 mt-4'}`}>
       <AnimatePresence>
         {showScrollButton && !isCentered && (
             <motion.button
@@ -215,7 +215,7 @@ export function ChatArea({
       </AnimatePresence>
       <form
         onSubmit={onSubmit}
-        className={`bg-white dark:bg-[#262626] border border-slate-200 dark:border-white/5 rounded-3xl shadow-xl transition-all duration-300 flex flex-col overflow-hidden ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+        className={`bg-white md:bg-white dark:bg-zinc-950 md:dark:bg-[#262626] border-t md:border border-slate-200 dark:border-white/5 rounded-none md:rounded-3xl shadow-none md:shadow-xl transition-all duration-300 flex flex-col overflow-hidden ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
       >
         {attachments.length > 0 && removeAttachment && (
           <div className="flex items-center gap-3 px-5 pt-4 pb-1 flex-wrap">
@@ -255,7 +255,7 @@ export function ChatArea({
           disabled={isLoading}
           maxLength={4000}
           placeholder={t('chat.input_placeholder')}
-          className="w-full p-5 bg-transparent border-0 focus:ring-0 focus:outline-none resize-none text-base font-sans text-slate-800 dark:text-[#E6EDF3] placeholder-slate-400 dark:placeholder-slate-500 leading-relaxed scrollbar-none"
+          className="w-full px-4 py-3 md:p-5 bg-transparent border-0 focus:ring-0 focus:outline-none resize-none text-base font-sans text-slate-800 dark:text-[#E6EDF3] placeholder-slate-400 dark:placeholder-slate-500 leading-relaxed scrollbar-none"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           minRows={1}
           maxRows={6}
@@ -299,7 +299,7 @@ export function ChatArea({
           </div>
         </div>
       </form>
-      <div className="text-center mt-3 text-xs text-neutral-500">
+      <div className="text-center mt-1 md:mt-3 text-[10px] md:text-xs leading-tight md:leading-normal text-neutral-500 hidden md:block">
         {t('chat.footer_disclaimer', { chatbot_name: t('chatbot_name') })}
       </div>
     </div>
@@ -459,7 +459,7 @@ export function ChatArea({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 p-4 md:p-8 space-y-6 z-0 relative flex flex-col pt-20"
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 md:px-8 py-4 md:py-8 space-y-6 z-0 relative flex flex-col pt-20"
       >
         {!isHydrated ? (
           <div className="flex-1 flex items-center justify-center">
@@ -482,15 +482,15 @@ export function ChatArea({
               </motion.div>
 
               {randomPrompts.length > 0 && (
-                <motion.div variants={itemVariants} className="w-full flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-4 md:mt-6">
+                <motion.div variants={itemVariants} className="w-full flex flex-col md:flex-row flex-wrap items-center justify-center gap-y-1 md:gap-y-2 md:gap-x-4 mt-6">
                   {randomPrompts.map((prompt, idx) => (
                     <button
                       key={idx}
                       onClick={() => handleSendMessage(prompt)}
-                      className="group flex items-center gap-2 bg-transparent rounded-xl px-3 py-1.5 text-sm font-medium text-slate-500 dark:text-zinc-400 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200 transition-all duration-200 cursor-pointer"
+                      className="group flex items-center gap-2 bg-transparent rounded-xl px-3 py-1.5 text-sm font-medium text-slate-500 dark:text-zinc-400 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200 transition-all duration-200 cursor-pointer w-full md:w-auto justify-center md:justify-start"
                     >
                       {prompt}
-                      <CornerDownLeft className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                      <CornerDownLeft className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity hidden md:block" />
                     </button>
                   ))}
                 </motion.div>
@@ -514,7 +514,7 @@ export function ChatArea({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="flex justify-start py-6"
+                  className="flex flex-col justify-start py-4 md:py-6 mb-2 md:mb-0"
                 >
                   <div className="bg-transparent text-slate-500 dark:text-slate-400 flex items-center gap-3">
                     <Scale className="w-5 h-5 text-slate-900 dark:text-white animate-pulse" />
@@ -531,7 +531,7 @@ export function ChatArea({
 
       {/* Input Area (Sticky Bottom when messages exist OR on mobile when empty) */}
         {(messages.length > 0) && (
-        <div className={`absolute bottom-0 left-0 right-0 p-4 flex-shrink-0 z-20 pb-6 pt-12 pointer-events-none bg-gradient-to-t from-background via-background/80 to-transparent ${messages.length === 0 ? 'block md:hidden' : 'block'}`}>
+        <div className={`absolute bottom-0 left-0 right-0 md:p-4 flex-shrink-0 z-20 pb-0 md:pb-6 pt-12 pointer-events-none bg-gradient-to-t from-background via-background/90 to-transparent ${messages.length === 0 ? 'block md:hidden' : 'block'}`}>
           <div className="pointer-events-auto">
             {renderInputArea(false)}
           </div>
