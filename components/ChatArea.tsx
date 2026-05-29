@@ -303,9 +303,6 @@ export function ChatArea({
           </div>
         </div>
       </form>
-      <div className="text-center text-[8px] md:text-xs text-neutral-400 dark:text-neutral-600 mt-1.5 md:mt-3 px-2 leading-tight md:leading-normal">
-        {t('chat.footer_disclaimer', { chatbot_name: t('chatbot_name') })}
-      </div>
     </div>
   );
 
@@ -499,6 +496,9 @@ export function ChatArea({
                   ))}
                 </motion.div>
               )}
+              <motion.div variants={itemVariants} className="text-center text-[10px] md:text-xs text-neutral-400 dark:text-neutral-500 mt-8 px-4">
+                {t('chat.footer_disclaimer', { chatbot_name: t('chatbot_name') })}
+              </motion.div>
             </div>
           </motion.div>
         ) : (
@@ -538,6 +538,9 @@ export function ChatArea({
             </AnimatePresence>
 
             <div ref={messagesEndRef} />
+            <div className="text-center text-[10px] md:text-xs text-neutral-400 dark:text-neutral-500 pt-8 pb-4">
+              {t('chat.footer_disclaimer', { chatbot_name: t('chatbot_name') })}
+            </div>
           </div>
         )}
       </div>
