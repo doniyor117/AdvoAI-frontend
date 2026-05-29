@@ -250,16 +250,24 @@ export function ChatArea({
       </AnimatePresence>
       <form
         onSubmit={onSubmit}
-        className={`bg-white dark:bg-[#262626] border border-slate-200 dark:border-white/5 transition-all duration-300 flex flex-col overflow-hidden ${
+        className={`border transition-all duration-300 flex flex-col overflow-hidden ${
           isCentered
-            ? 'rounded-[24px] md:rounded-3xl shadow-xl'
-            : 'rounded-t-[24px] rounded-b-none md:rounded-3xl shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] md:shadow-xl border-x-0 border-b-0 md:border-x md:border-b'
+            ? 'bg-white dark:bg-[#262626] border-slate-200 dark:border-white/5 rounded-[24px] md:rounded-3xl shadow-xl'
+            : 'bg-[#FDFBF7] dark:bg-[#262626] border-slate-200/60 dark:border-white/5 rounded-[24px] md:rounded-3xl shadow-xl md:shadow-xl border mx-2 mb-2 md:mx-0 md:mb-0'
         } ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
       >
         {attachments.length > 0 && removeAttachment && (
           <div className="flex items-center gap-3 px-5 pt-4 pb-1 flex-wrap">
             {attachments.map((file, idx) => (
-              <div key={idx} className="relative flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-white/10 rounded-2xl p-2 w-20 h-20 shadow-sm group">
+              <div 
+                key={idx} 
+                onClick={() => {
+                  if (onAttachmentClick && file.local_url && !file.is_uploading) {
+                    onAttachmentClick(file);
+                  }
+                }}
+                className={`relative flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-white/10 rounded-2xl p-2 w-20 h-20 shadow-sm group ${(!file.is_uploading && file.local_url) ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-[#222]' : ''}`}
+              >
                 <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 relative overflow-hidden">
                   {file.is_uploading ? (
                     <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
@@ -273,7 +281,10 @@ export function ChatArea({
                 <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400 w-full text-center truncate px-1">{file.display_name}</span>
                 <button 
                   type="button" 
-                  onClick={() => removeAttachment(idx)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeAttachment(idx);
+                  }}
                   className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-slate-200 dark:bg-[#333] border border-slate-300 dark:border-[#555] flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
                 >
                   <X className="w-3 h-3" />
@@ -290,6 +301,14 @@ export function ChatArea({
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               onSubmit();
+            }
+          }}
+          onPaste={(e) => {
+            if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+              // If the paste event contains files (like an image), handle them as attachments
+              if (uploadFile) {
+                Array.from(e.clipboardData.files).forEach(file => uploadFile(file));
+              }
             }
           }}
           disabled={isLoading}
@@ -398,14 +417,16 @@ export function ChatArea({
                 <Menu className="w-5 h-5" />
               </button>
             )}
-            {isSidebarOpen && <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 transition-colors md:hidden mr-2"
-                  aria-label="Close sidebar"
-                >
+
+            {isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 transition-colors md:hidden mr-2"
+                aria-label="Close sidebar"
+              >
                 <Menu className="w-5 h-5" />
               </button>
-            }
+            )}
 
             {/* Branding / Title Logic */}
             {messages.length === 0 ? (
@@ -519,7 +540,7 @@ export function ChatArea({
               </motion.div>
 
               {randomPrompts.length > 0 && (
-                <motion.div variants={itemVariants} className="w-full flex flex-col md:flex-row flex-wrap items-center justify-center gap-y-1 md:gap-y-2 md:gap-x-4 mt-6">
+                <motion.div variants={itemVariants} className="hidden md:flex w-full flex-col md:flex-row flex-wrap items-center justify-center gap-y-1 md:gap-y-2 md:gap-x-4 mt-6">
                   {randomPrompts.map((prompt, idx) => (
                     <button
                       key={idx}

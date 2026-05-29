@@ -201,23 +201,27 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
         <div className="w-64 h-full flex flex-col">
           <div className="px-3 py-3 flex items-center justify-between min-w-[256px] h-[60px]">
             <button
-              className="flex-1 flex items-center gap-3 text-primary dark:text-[#E6EDF3] group/logo rounded-lg transition-colors relative"
+              className="flex-1 flex items-center gap-3 text-primary dark:text-[#E6EDF3] group/logo rounded-lg hover:bg-black/5 dark:hover:bg-white/5 p-1 -ml-1 transition-colors relative"
               onClick={() => setIsOpen(!isOpen)}
               aria-label="Toggle sidebar"
             >
               <div className="relative w-10 h-10 flex items-center justify-center flex-shrink-0 rounded-md transition-colors">
-                <Image src="/advoai-logo.png" alt="AdvoAI Logo" width={40} height={40} className="object-contain" referrerPolicy="no-referrer" unoptimized />
+                <Image 
+                  src="/advoai-logo.png" 
+                  alt="AdvoAI Logo" 
+                  width={40} 
+                  height={40} 
+                  className="object-contain transition-opacity duration-300 md:group-hover/logo:opacity-0" 
+                  referrerPolicy="no-referrer" 
+                  unoptimized 
+                />
+                <div className="absolute inset-0 items-center justify-center hidden md:flex opacity-0 group-hover/logo:opacity-100 transition-opacity duration-300">
+                  {isOpen ? <PanelLeftClose className="w-6 h-6 text-slate-500 dark:text-slate-400" /> : <PanelLeftOpen className="w-6 h-6 text-slate-500 dark:text-slate-400" />}
+                </div>
               </div>
               <span className={`text-xl font-bold text-slate-900 dark:text-white transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 overflow-hidden w-0'}`}>
                 {t('chatbot_name')}
               </span>
-            </button>
-            <button
-              className="hidden md:flex text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors active:scale-95"
-              onClick={() => setIsOpen(!isOpen)}
-              aria-label="Toggle sidebar"
-            >
-              {isOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
             </button>
             <button
               className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors active:scale-95 md:hidden"

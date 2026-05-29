@@ -59,6 +59,8 @@ function getFingerprint(): string {
 let cachedSidebarState: boolean | null = null;
 
 export function useChatManager(chatId?: string) {
+  const draftKey = `advoai_draft_${chatId || 'new'}`;
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -136,16 +138,23 @@ export function useChatManager(chatId?: string) {
 
       // 1. Try local storage first (it has citations/attachments)
       const saved = localStorage.getItem(storageKey!);
+      let parsed = null;
       if (saved) {
         try {
-          setMessages(JSON.parse(saved));
+          parsed = JSON.parse(saved);
+          // Validate cache structure to ensure we don't load old broken messages
+          if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0].text !== 'string') {
+            parsed = null;
+          }
         } catch (e) {
           console.error('Failed to parse saved messages', e);
-          setMessages([]);
         }
+      }
+
+      if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+        setMessages(parsed);
       } else {
         setMessages([]);
-        
         // 2. If empty and authenticated, fallback to fetching history from backend
         if (isAuthenticated) {
           try {
@@ -153,10 +162,12 @@ export function useChatManager(chatId?: string) {
             if (res.ok) {
               const data = await safeJson(res);
               if (data.messages && data.messages.length > 0) {
-                // Map backend messages to frontend format
                 const history = data.messages.map((m: any) => ({
+                  id: m.id || generateId(),
                   role: m.role,
-                  content: m.content,
+                  text: m.content || m.text || '',
+                  citations: m.citations,
+                  attachments: m.attachments,
                 }));
                 setMessages(history);
                 // Save to local storage for future use
@@ -192,6 +203,30 @@ export function useChatManager(chatId?: string) {
       localStorage.setItem(storageKey, JSON.stringify(messages));
     }
   }, [messages, isHydrated, storageKey]);
+
+  // ── Draft Preservation ────────────────────────────────────
+  // Load draft on mount or chatId change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedDraft = localStorage.getItem(draftKey);
+      if (savedDraft) {
+        setInputValue(savedDraft);
+      } else {
+        setInputValue(''); // Clear if no draft
+      }
+    }
+  }, [draftKey]);
+
+  // Save draft whenever inputValue changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (inputValue.trim()) {
+        localStorage.setItem(draftKey, inputValue);
+      } else {
+        localStorage.removeItem(draftKey); // Cleanup if empty
+      }
+    }
+  }, [inputValue, draftKey]);
 
   // ── Send message to backend ───────────────────────────────
   const sendToBackend = useCallback(async (
