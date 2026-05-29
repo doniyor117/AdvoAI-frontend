@@ -108,6 +108,19 @@ Two tabs:
 - **General** — Theme selection (Light / Dark / System)
 - **Account** — Edit full name (PATCHes `/api/auth/me`, syncs immediately)
 
+### Advanced Input & File Handling
+
+- **Multi-Modal Upload**: Supports images (PNG, JPEG, WebP, GIF) and documents (PDF, DOCX, TXT, CSV, HTML) with a 10MB limit.
+- **Instant Previews**: Uploaded files and images can be previewed directly from the input bar before sending, and from within the chat history.
+- **Clipboard Paste**: Supports native `Ctrl+V` (or `Cmd+V`) pasting of images and files directly into the chat input.
+- **Draft Preservation**: Every keystroke is instantly saved to `localStorage`. Drafts survive page refreshes, accidental closures, and are tied specifically to the active chat session.
+
+### Progressive Web App (PWA)
+
+Fully installable as a PWA on mobile and desktop devices.
+- Manifest and service worker configured via `@ducanh2912/next-pwa`
+- Offline fallbacks and aggressive frontend caching
+
 ### Admin Panel (`/admin`)
 
 | Page | Features |
