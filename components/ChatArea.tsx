@@ -187,6 +187,15 @@ export function ChatArea({
     messagesEndRef.current?.scrollIntoView({ behavior: force ? 'instant' : 'smooth' });
   };
 
+  const scrollToMessage = (id: string, force = false) => {
+    const el = document.getElementById(`message-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: force ? 'instant' : 'smooth', block: 'start' });
+    } else {
+      scrollToBottom(force);
+    }
+  };
+
   const prevIsLoading = useRef(isLoading);
   const lastMessageId = useRef<string | undefined>(undefined);
 
@@ -198,7 +207,18 @@ export function ChatArea({
     if (isNewMessageId || isStartedLoading) {
       const isInitial = lastMessageId.current === undefined;
       // Slight delay to ensure DOM is ready
-      setTimeout(() => scrollToBottom(isInitial), 50);
+      setTimeout(() => {
+        if (isStartedLoading) {
+          const loadingEl = document.getElementById('loading-indicator');
+          if (loadingEl) {
+            loadingEl.scrollIntoView({ behavior: isInitial ? 'instant' : 'smooth', block: 'start' });
+          } else {
+            scrollToBottom(isInitial);
+          }
+        } else if (isNewMessageId && currentLastId) {
+          scrollToMessage(currentLastId, isInitial);
+        }
+      }, 50);
     }
     
     lastMessageId.current = currentLastId;
@@ -529,10 +549,11 @@ export function ChatArea({
             <AnimatePresence>
               {isLoading && (
                 <motion.div
+                  id="loading-indicator"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="flex flex-col justify-start py-4 md:py-6 mb-2 md:mb-0"
+                  className="flex flex-col justify-start py-4 md:py-6 mb-2 md:mb-0 scroll-mt-24 md:scroll-mt-28"
                 >
                   <div className="bg-transparent text-slate-500 dark:text-slate-400 flex items-center gap-3 pl-1 md:pl-0">
                     <Image src="/advoai-logo.png" alt="AdvoAI Logo" width={24} height={24} className="w-6 h-6 object-contain animate-pulse" referrerPolicy="no-referrer" unoptimized />
