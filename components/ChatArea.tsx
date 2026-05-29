@@ -215,7 +215,11 @@ export function ChatArea({
       </AnimatePresence>
       <form
         onSubmit={onSubmit}
-        className={`bg-white md:bg-white dark:bg-zinc-950 md:dark:bg-[#262626] border-t md:border border-slate-200 dark:border-white/5 rounded-none md:rounded-3xl shadow-none md:shadow-xl transition-all duration-300 flex flex-col overflow-hidden ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+        className={`transition-all duration-300 flex flex-col overflow-hidden ${
+          isCentered
+            ? 'bg-white dark:bg-[#262626] border border-slate-200 dark:border-white/5 rounded-[24px] md:rounded-3xl shadow-xl'
+            : 'bg-white md:bg-white dark:bg-zinc-950 md:dark:bg-[#262626] border-t md:border border-slate-200 dark:border-white/5 rounded-none md:rounded-3xl shadow-none md:shadow-xl'
+        } ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
       >
         {attachments.length > 0 && removeAttachment && (
           <div className="flex items-center gap-3 px-5 pt-4 pb-1 flex-wrap">
