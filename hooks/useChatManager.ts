@@ -83,15 +83,8 @@ export function useChatManager(chatId?: string) {
 
   useEffect(() => {
     if (cachedSidebarState === null && typeof window !== 'undefined') {
-      const saved = localStorage.getItem('advoai_sidebar_open');
-      let nextState = false;
-      if (saved !== null) {
-        nextState = saved === 'true';
-      } else {
-        nextState = window.innerWidth >= 768;
-      }
-      setIsSidebarOpen(nextState);
-      cachedSidebarState = nextState;
+      setIsSidebarOpen(false);
+      cachedSidebarState = false;
     }
   }, []);
 
@@ -102,7 +95,6 @@ export function useChatManager(chatId?: string) {
     }
     if (typeof window !== 'undefined') {
       cachedSidebarState = isSidebarOpen;
-      localStorage.setItem('advoai_sidebar_open', String(isSidebarOpen));
     }
   }, [isSidebarOpen]);
 
@@ -121,7 +113,6 @@ export function useChatManager(chatId?: string) {
         isFirstRender.current = false;
         return;
       }
-      localStorage.setItem('advoai_sidebar_open', String(isSidebarOpen));
     }
   }, [isSidebarOpen]);
 

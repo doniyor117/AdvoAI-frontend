@@ -36,6 +36,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // ── Provider ────────────────────────────────────────────────
 
+// ── Helpers for Tokens ────────────────────────────────────────
+
+function setToken(token: string) {
+  localStorage.setItem('advoai_token', token);
+  // Explicitly set cookie on frontend domain to fix iOS Safari 3rd-party cookie blocking
+  // This ensures Next.js middleware can always read the token on mobile.
+  document.cookie = `advoai_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`;
+}
+
+function clearToken() {
+  localStorage.removeItem('advoai_token');
+  document.cookie = 'advoai_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax';
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user as User);
         // If the backend reissued a token (e.g. role changed), update localStorage
         if (data.token) {
-          localStorage.setItem('advoai_token', data.token);
+          setToken(data.token);
         }
       } else {
         setUser(null);
@@ -78,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await safeJson(res);
       if (res.ok && data.token) {
-        localStorage.setItem('advoai_token', data.token);
+        setToken(data.token);
         setUser(data.user as User);
         return { success: true, requiresConsent: !data.user.terms_accepted };
       }
@@ -116,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await safeJson(res);
       if (res.ok && data.token) {
-        localStorage.setItem('advoai_token', data.token);
+        setToken(data.token);
         setUser(data.user as User);
         return { success: true };
       }
@@ -159,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await safeJson(res);
       if (res.ok && data.token) {
-        localStorage.setItem('advoai_token', data.token);
+        setToken(data.token);
         setUser(data.user as User);
         return { success: true, requiresConsent: !data.user.terms_accepted };
       }
@@ -174,11 +188,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function logout() {
     try {
       await authFetch('/api/auth/logout', { method: 'POST' });
-    } catch {
-      // Ignore errors on logout
+    } catch (err) {
+      console.error('[Logout] Error:', err);
+    } finally {
+      clearToken();
+      setUser(null);
     }
-    localStorage.removeItem('advoai_token');
-    setUser(null);
   }
 
   return (
