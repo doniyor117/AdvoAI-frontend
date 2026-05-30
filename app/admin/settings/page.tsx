@@ -31,6 +31,7 @@ export default function AdminSettings() {
         custom_api_keys: '',
         global_notification: '',
         global_notification_type: 'info',
+        ui_support_email: '',
     });
     const [isSavingSettings, setIsSavingSettings] = useState(false);
     const [settingsSaved, setSettingsSaved] = useState(false);
@@ -106,6 +107,7 @@ export default function AdminSettings() {
                 custom_api_keys: data.settings.custom_api_keys || '',
                 global_notification: data.settings.global_notification || '',
                 global_notification_type: data.settings.global_notification_type || 'info',
+                ui_support_email: data.settings.ui_support_email || 'support@advoai.uz',
             });
         } catch {
             // ignore
@@ -137,6 +139,7 @@ export default function AdminSettings() {
                     custom_api_keys: settings.custom_api_keys,
                     global_notification: settings.global_notification,
                     global_notification_type: settings.global_notification_type,
+                    ui_support_email: settings.ui_support_email,
                 }),
             });
             if (res.ok) {
@@ -268,6 +271,16 @@ export default function AdminSettings() {
                                         <SelectItem value="success">Success (Green)</SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        </div>
+
+                        {/* UI Settings */}
+                        <div className="border-t pt-4 mt-4 space-y-4">
+                            <h3 className="font-semibold text-sm">UI Settings</h3>
+                            <div className="space-y-2">
+                                <Label>Support Email</Label>
+                                <Input value={settings.ui_support_email} onChange={e => setSettings({...settings, ui_support_email: e.target.value})} placeholder="e.g. support@advoai.uz" />
+                                <p className="text-xs text-muted-foreground mt-1">This email will be displayed in the sidebar for users to contact support.</p>
                             </div>
                         </div>
 
