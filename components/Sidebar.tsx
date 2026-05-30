@@ -439,7 +439,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
                               <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2" />
 
                               {isAdmin && (
-                                <Link
+                                <a
                                   href="/admin"
                                   onClick={() => {
                                     setIsProfileMenuOpen(false);
@@ -449,7 +449,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
                                 >
                                   <Shield className="w-4 h-4 text-primary dark:text-[#1F6FEB]" />
                                   <span>Admin Panel</span>
-                                </Link>
+                                </a>
                               )}
 
                               <button
