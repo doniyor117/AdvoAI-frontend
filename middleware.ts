@@ -7,21 +7,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Decode JWT payload (no verification — just to read the role claim)
-  try {
-    let base64Url = token.split('.')[1];
-    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const padLength = (4 - (base64.length % 4)) % 4;
-    base64 += '='.repeat(padLength);
-
-    const payload = JSON.parse(atob(base64));
-    if (payload.role !== 'admin' && payload.role !== 'root_admin') {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-  } catch (err) {
-    console.error('Middleware JWT decode error:', err);
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
+  // Role checking is now handled entirely on the client side in app/admin/layout.tsx
+  // and securely on the backend APIs. This prevents aggressive PWA service workers
+  // or iOS Safari cookie sync delays from caching a 307 redirect.
 
   return NextResponse.next();
 }
