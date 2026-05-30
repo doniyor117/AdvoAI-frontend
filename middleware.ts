@@ -15,7 +15,7 @@ export function middleware(request: NextRequest) {
     base64 += '='.repeat(padLength);
 
     const payload = JSON.parse(atob(base64));
-    if (payload.role !== 'admin') {
+    if (payload.role !== 'admin' && payload.role !== 'root_admin') {
       return NextResponse.redirect(new URL('/', request.url));
     }
   } catch (err) {
