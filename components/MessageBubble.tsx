@@ -70,14 +70,20 @@ function AttachmentThumbnail({
       onClick={() => onAttachmentClick && onAttachmentClick(file)}
       className={`relative flex flex-col overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] w-20 h-20 flex-shrink-0 ${hasPreview ? 'cursor-pointer' : 'cursor-default'}`}
     >
-      {isImage && imgSrc ? (
+      {isImage ? (
         <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imgSrc}
-            alt={file.display_name}
-            className="w-full h-full object-cover"
-          />
+          {imgSrc ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={imgSrc}
+              alt={file.display_name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800/80">
+              <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            </div>
+          )}
           <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pt-3 pb-1">
             <span className="text-[8px] text-white font-medium leading-tight truncate block">{file.display_name}</span>
           </div>

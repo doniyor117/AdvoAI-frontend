@@ -23,21 +23,31 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
 
   // Resolve the preview URL: local blob URL → presigned R2 URL → null
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!activeAttachment) { setPreviewUrl(null); return; }
+    if (!activeAttachment) { setPreviewUrl(null); setIsLoadingUrl(false); return; }
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (activeAttachment.local_url) { setPreviewUrl(activeAttachment.local_url); return; }
+    if (activeAttachment.local_url) { setPreviewUrl(activeAttachment.local_url); setIsLoadingUrl(false); return; }
     if (activeAttachment.s3_key) {
+      setIsLoadingUrl(true);
       let cancelled = false;
       authFetch(`/api/chat/file/${encodeURIComponent(activeAttachment.s3_key)}`)
         .then(res => res.ok ? res.json() : null)
-        .then(data => { if (!cancelled && data?.url) setPreviewUrl(data.url); })
-        .catch(() => {});
+        .then(data => {
+          if (!cancelled) {
+            if (data?.url) setPreviewUrl(data.url);
+            setIsLoadingUrl(false);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setIsLoadingUrl(false);
+        });
       return () => { cancelled = true; };
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPreviewUrl(null);
+    setIsLoadingUrl(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAttachment?.local_url, activeAttachment?.s3_key]);
 
@@ -124,19 +134,53 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
 
               <div className="flex-1 overflow-y-auto p-6 bg-[#FDFBF7] dark:bg-sidebar z-0 flex flex-col">
                 {activeAttachment ? (
-                  activeAttachment.mime_type?.startsWith('image/') ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={previewUrl || ''}
-                      alt={activeAttachment.display_name}
-                      className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
-                    />
+                  isLoadingUrl ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400">
+                      <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                      <p className="text-sm">Loading preview...</p>
+                    </div>
+                  ) : activeAttachment.mime_type?.startsWith('image/') ? (
+                    previewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={previewUrl}
+                        alt={activeAttachment.display_name}
+                        className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
+                        <FileText className="w-12 h-12 opacity-30" />
+                        <p className="text-sm">{activeAttachment.display_name}</p>
+                        <p className="text-xs opacity-60">Image preview not available</p>
+                      </div>
+                    )
                   ) : previewUrl ? (
-                    <iframe
-                      src={previewUrl}
-                      className="w-full h-full flex-1 border-0 rounded-md bg-white dark:bg-black/20"
-                      title={activeAttachment.display_name}
-                    />
+                    <div className="flex flex-col w-full h-full min-h-[50vh]">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-white/5">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="p-2 bg-white dark:bg-slate-800 rounded-md shadow-sm border border-slate-200 dark:border-white/5">
+                            <FileText className="w-6 h-6 text-primary flex-shrink-0" />
+                          </div>
+                          <div className="truncate">
+                            <p className="font-medium text-sm text-foreground truncate">{activeAttachment.display_name}</p>
+                            <p className="text-xs text-muted-foreground uppercase">{activeAttachment.display_name.split('.').pop() || 'FILE'}</p>
+                          </div>
+                        </div>
+                        <a
+                          href={previewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors whitespace-nowrap flex-shrink-0 shadow-sm"
+                        >
+                          Download / Open
+                        </a>
+                      </div>
+                      <iframe
+                        src={previewUrl}
+                        className="w-full h-full flex-1 border border-slate-200 dark:border-white/10 rounded-md bg-white dark:bg-black/20"
+                        title={activeAttachment.display_name}
+                      />
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
                       <FileText className="w-12 h-12 opacity-30" />
