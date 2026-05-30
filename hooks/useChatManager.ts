@@ -268,6 +268,7 @@ export function useChatManager(chatId?: string) {
         mime_type: f.mime_type,
         name: f.name,
         display_name: f.display_name,
+        s3_key: f.s3_key || '',
       }));
     }
 
