@@ -9,7 +9,7 @@ export interface User {
   id: string;
   email: string;
   full_name: string | null;
-  role: 'guest' | 'free' | 'admin';
+  role: 'guest' | 'free' | 'admin' | 'root_admin';
   auth_provider: 'email' | 'google';
   email_verified: boolean;
   has_password?: boolean;
@@ -23,11 +23,11 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; requiresConsent?: boolean }>;
   sendRegistrationOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
   signup: (email: string, password: string, fullName: string, otp: string, allowDataCollection: boolean) => Promise<{ success: boolean; error?: string }>;
   submitConsent: (allowDataCollection: boolean) => Promise<{ success: boolean; error?: string }>;
-  loginWithGoogle: (credential: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (credential: string) => Promise<{ success: boolean; error?: string; requiresConsent?: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
