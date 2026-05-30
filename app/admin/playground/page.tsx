@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2, Search, Zap, AlertCircle } from "lucide-react";
+import { authFetch, safeJson } from '@/lib/authFetch';
 
 interface Chunk {
     id: number;
@@ -36,22 +37,20 @@ export default function RAGPlayground() {
         setResult(null);
 
         try {
-            const token = localStorage.getItem('advoai_token') || document.cookie.split('advoai_token=')[1]?.split(';')[0];
-            const res = await fetch('/api/admin/rag-test', {
+            const res = await authFetch('/api/admin/rag-test', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
                 body: JSON.stringify({ query, top_k: topK }),
             });
 
             if (!res.ok) {
-                const data = await res.json();
+                const data = await safeJson(res);
                 throw new Error(data.detail || 'Failed to run RAG pipeline');
             }
 
-            const data = await res.json();
+            const data = await safeJson(res);
             setResult(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An unknown error occurred');
