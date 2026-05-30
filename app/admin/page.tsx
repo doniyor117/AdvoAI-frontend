@@ -56,7 +56,7 @@ export default function AdminDashboard() {
     const statCards = [
         { label: 'Total Users', value: stats?.total_users ?? 0, icon: Users, color: 'text-blue-600 dark:text-blue-400' },
         { label: 'Documents', value: stats?.total_documents ?? 0, icon: FileText, color: 'text-emerald-600 dark:text-emerald-400' },
-        { label: 'Document Parts', value: stats?.total_document_parts ?? 0, icon: FileText, color: 'text-emerald-500 dark:text-emerald-300' },
+        { label: 'Document Parts', value: stats?.total_document_parts ?? 0, icon: Settings, color: 'text-emerald-500 dark:text-emerald-300' },
         { label: 'Vector Chunks', value: stats?.total_chunks ?? 0, icon: Activity, color: 'text-amber-600 dark:text-amber-400' },
         { label: 'Active Today', value: stats?.daily_active_users ?? 0, icon: Users, color: 'text-purple-600 dark:text-purple-400' },
         { label: 'Messages Today', value: stats?.daily_messages ?? 0, icon: MessageSquare, color: 'text-rose-600 dark:text-rose-400' },

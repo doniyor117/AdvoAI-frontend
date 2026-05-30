@@ -248,6 +248,28 @@ export default function AdminSettings() {
                             </div>
                         </div>
 
+                        {/* Global Notification */}
+                        <div className="border-t pt-4 mt-4 space-y-4">
+                            <h3 className="font-semibold text-sm">Global Notification Banner</h3>
+                            <div className="space-y-2">
+                                <Label>Notification Message (leave blank to disable)</Label>
+                                <Input value={settings.global_notification} onChange={e => setSettings({...settings, global_notification: e.target.value})} placeholder="e.g. Scheduled maintenance at midnight" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Notification Type</Label>
+                                <Select value={settings.global_notification_type} onValueChange={val => setSettings({...settings, global_notification_type: val})}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="info">Info (Blue)</SelectItem>
+                                        <SelectItem value="warning">Warning (Yellow)</SelectItem>
+                                        <SelectItem value="error">Error (Red)</SelectItem>
+                                        <SelectItem value="success">Success (Green)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
 
                         {/* API Keys */}
                         <div className="border-t pt-4 mt-4 space-y-4">
