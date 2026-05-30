@@ -109,7 +109,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
   const { t, lang, setLang } = useLanguage();
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, logout, isLoading } = useAuth();
   const { settings } = usePublicSettings();
 
   const { sessions, deleteSession, updateSessionTitle, togglePinSession, isHydrated } = useSessions();
@@ -380,7 +380,15 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
               {/* ── Dynamic Auth Footer ──────────────────────── */}
               <div className="mt-auto p-4 border-t border-black/5 dark:border-white/5 min-w-[256px] relative" ref={profileMenuRef}>
                 <div className={`transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
-                  {isAuthenticated && user ? (
+                  {isLoading ? (
+                    <div className="flex items-center gap-3 px-3 py-2.5 opacity-50">
+                      <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse flex-shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded animate-pulse w-3/4" />
+                        <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded animate-pulse w-1/2" />
+                      </div>
+                    </div>
+                  ) : isAuthenticated && user ? (
                     <>
                       {/* Logged-in: Profile dropdown */}
                       <AnimatePresence>

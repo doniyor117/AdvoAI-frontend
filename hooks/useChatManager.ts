@@ -100,7 +100,7 @@ export function useChatManager(chatId?: string) {
 
   const router = useRouter();
   const { addSession, sessions } = useSessions();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const isNavigatingRef = useRef(false);
 
   const storageKey = chatId ? `advoai_chat_messages_${chatId}` : null;
@@ -118,6 +118,8 @@ export function useChatManager(chatId?: string) {
 
   // Load messages from localStorage on mount or when chatId changes
   useEffect(() => {
+    if (isAuthLoading) return;
+
     async function loadMessages() {
       if (!chatId) {
         setMessages([]);
@@ -187,7 +189,7 @@ export function useChatManager(chatId?: string) {
     }
     
     loadMessages();
-  }, [chatId, storageKey, isAuthenticated]);
+  }, [chatId, storageKey, isAuthenticated, isAuthLoading]);
 
   // Save to localStorage when messages change (client-side cache)
   useEffect(() => {
@@ -286,7 +288,7 @@ export function useChatManager(chatId?: string) {
 
   const handleSendMessage = useCallback((text: string) => {
     const trimmed = text.trim();
-    if ((!trimmed && attachments.length === 0) || isNavigatingRef.current || isLoading) return;
+    if ((!trimmed && attachments.length === 0) || isNavigatingRef.current || isLoading || isAuthLoading) return;
     
     // Check if we are still uploading
     if (attachments.some(a => a.is_uploading)) {
@@ -401,7 +403,7 @@ export function useChatManager(chatId?: string) {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [chatId, isLoading, sessionId, isAuthenticated, addSession, router, sendToBackend, attachments, quotedText]);
+  }, [chatId, isLoading, isAuthLoading, sessionId, isAuthenticated, addSession, router, sendToBackend, attachments, quotedText]);
 
   // Handle pending question after redirect (new chat flow)
   useEffect(() => {
