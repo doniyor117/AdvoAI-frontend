@@ -54,6 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const data = await safeJson(res);
         setUser(data.user as User);
+        // If the backend reissued a token (e.g. role changed), update localStorage
+        if (data.token) {
+          localStorage.setItem('advoai_token', data.token);
+        }
       } else {
         setUser(null);
       }
