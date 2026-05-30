@@ -150,36 +150,39 @@ export function useChatManager(chatId?: string) {
         setMessages(parsed);
       } else {
         setMessages([]);
-        // 2. If empty and authenticated, fallback to fetching history from backend
-        if (isAuthenticated) {
-          try {
-            const res = await authFetch(`/api/sessions/${chatId}/messages`);
-            if (res.ok) {
-              const data = await safeJson(res);
-              if (data.messages && data.messages.length > 0) {
-                const history = data.messages.map((m: any) => ({
-                  id: m.id || generateId(),
-                  role: m.role,
-                  text: m.content || m.text || '',
-                  citations: m.citations,
-                  // Map attachments from backend (s3_key, display_name, mime_type)
-                  // Note: local_url is intentionally omitted — blob URLs are ephemeral
-                  attachments: m.attachments
-                    ? m.attachments.map((a: any) => ({
-                        display_name: a.display_name,
-                        mime_type: a.mime_type,
-                        s3_key: a.s3_key,
-                      }))
-                    : undefined,
-                }));
-                setMessages(history);
-                // Save to local storage for future use
-                localStorage.setItem(storageKey!, JSON.stringify(history));
-              }
+      }
+
+      // 2. Always fetch history from backend if authenticated to sync cross-device
+      if (isAuthenticated) {
+        try {
+          const res = await authFetch(`/api/sessions/${chatId}/messages`);
+          if (res.ok) {
+            const data = await safeJson(res);
+            if (data.messages && data.messages.length > 0) {
+              const history = data.messages.map((m: any) => ({
+                id: m.id || generateId(),
+                role: m.role,
+                text: m.content || m.text || '',
+                citations: m.citations,
+                attachments: m.attachments
+                  ? m.attachments.map((a: any) => ({
+                      display_name: a.display_name,
+                      mime_type: a.mime_type,
+                      s3_key: a.s3_key,
+                    }))
+                  : undefined,
+              }));
+              setMessages(history);
+              // Save to local storage for future use
+              localStorage.setItem(storageKey!, JSON.stringify(history));
+            } else {
+              // If backend has no messages but cache did, backend is the source of truth
+              setMessages([]);
+              localStorage.removeItem(storageKey!);
             }
-          } catch (e) {
-            console.error('Failed to fetch chat history from backend', e);
           }
+        } catch (e) {
+          console.error('Failed to fetch chat history from backend', e);
         }
       }
 
