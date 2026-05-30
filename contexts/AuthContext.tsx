@@ -10,10 +10,12 @@ export interface User {
   email: string;
   full_name: string | null;
   role: 'guest' | 'free' | 'admin';
-  auth_provider: 'email' | 'google' | 'both';
+  auth_provider: 'email' | 'google';
   email_verified: boolean;
   has_password?: boolean;
   is_google_linked?: boolean;
+  allow_data_collection?: boolean;
+  terms_accepted?: boolean;
 }
 
 interface AuthContextType {
@@ -23,7 +25,8 @@ interface AuthContextType {
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   sendRegistrationOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, password: string, fullName: string, otp: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, fullName: string, otp: string, allowDataCollection: boolean) => Promise<{ success: boolean; error?: string }>;
+  submitConsent: (allowDataCollection: boolean) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: (credential: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -38,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const isAuthenticated = !!user;
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'root_admin';
 
   // Fetch current user on mount
   useEffect(() => {
@@ -73,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok && data.token) {
         localStorage.setItem('advoai_token', data.token);
         setUser(data.user as User);
-        return { success: true };
+        return { success: true, requiresConsent: !data.user.terms_accepted };
       }
       return { success: false, error: (data.detail as string) || 'Login failed.' };
     } catch (err) {
@@ -99,12 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function signup(email: string, password: string, fullName: string, otp: string) {
+  async function signup(email: string, password: string, fullName: string, otp: string, allowDataCollection: boolean) {
     try {
       const res = await authFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, full_name: fullName, otp }),
+        body: JSON.stringify({ email, password, full_name: fullName, otp, allow_data_collection: allowDataCollection }),
       });
 
       const data = await safeJson(res);
@@ -121,6 +124,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function submitConsent(allowDataCollection: boolean) {
+    try {
+      const res = await authFetch('/api/auth/submit-consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allow_data_collection: allowDataCollection }),
+      });
+
+      const data = await safeJson(res);
+      if (res.ok) {
+        setUser(data.user as User);
+        return { success: true };
+      }
+      return { success: false, error: (data.detail as string) || 'Failed to submit consent.' };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[Consent] Error:', msg);
+      return { success: false, error: msg };
+    }
+  }
+
   async function loginWithGoogle(credential: string) {
     try {
       const res = await authFetch('/api/auth/google', {
@@ -133,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok && data.token) {
         localStorage.setItem('advoai_token', data.token);
         setUser(data.user as User);
-        return { success: true };
+        return { success: true, requiresConsent: !data.user.terms_accepted };
       }
       return { success: false, error: (data.detail as string) || 'Google sign-in failed.' };
     } catch (err) {
@@ -163,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         sendRegistrationOtp,
         signup,
+        submitConsent,
         loginWithGoogle,
         logout,
         refreshUser,

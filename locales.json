@@ -97,6 +97,7 @@
         }
       ],
       "input_placeholder": "Ask anything",
+      "quote_selection": "Ask about",
       "new_consultation": "New chat",
       "current_consultation": "Current Consultation",
       "processing": "{chatbot_name} is processing...",
@@ -274,6 +275,7 @@
         }
       ],
       "input_placeholder": "Istalgan narsani so'rang",
+      "quote_selection": "Bu haqida so'rash",
       "new_consultation": "Yangi chat",
       "current_consultation": "Joriy konsultatsiya",
       "processing": "{chatbot_name} ishlamoqda...",
@@ -451,6 +453,7 @@
         }
       ],
       "input_placeholder": "Спросите что угодно",
+      "quote_selection": "Спросить об этом",
       "new_consultation": "Новый чат",
       "current_consultation": "Текущая консультация",
       "processing": "{chatbot_name} обрабатывает...",

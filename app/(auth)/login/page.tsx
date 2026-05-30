@@ -14,7 +14,7 @@ import { Scale, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
     const router = useRouter();
-    const { login, loginWithGoogle, isAuthenticated } = useAuth();
+    const { login, loginWithGoogle, isAuthenticated, user } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -28,7 +28,11 @@ export default function LoginPage() {
         setIsGoogleLoading(true);
         const result = await loginWithGoogle(credential);
         if (result.success) {
-            router.push('/');
+            if (result.requiresConsent) {
+                router.push('/consent');
+            } else {
+                router.push('/');
+            }
         } else {
             setError(result.error || 'Google sign-in failed.');
         }
@@ -48,10 +52,14 @@ export default function LoginPage() {
 
     // Redirect if already authenticated
     useEffect(() => {
-        if (isAuthenticated) {
-            router.push('/');
+        if (isAuthenticated && user) {
+            if (!user.terms_accepted) {
+                router.push('/consent');
+            } else {
+                router.push('/');
+            }
         }
-    }, [isAuthenticated, router]);
+    }, [isAuthenticated, user, router]);
 
     if (isAuthenticated) return null;
 
@@ -63,7 +71,11 @@ export default function LoginPage() {
         const result = await login(email, password);
 
         if (result.success) {
-            router.push('/');
+            if (result.requiresConsent) {
+                router.push('/consent');
+            } else {
+                router.push('/');
+            }
         } else {
             setError(result.error || 'Login failed.');
         }

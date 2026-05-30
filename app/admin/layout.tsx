@@ -5,12 +5,19 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Scale, LayoutDashboard, Users, FileText, ArrowLeft, Loader2 } from 'lucide-react';
+import { Scale, LayoutDashboard, Users, FileText, ArrowLeft, Loader2, Lock, ShieldAlert, Activity, Settings } from 'lucide-react';
+import { authFetch } from '@/lib/authFetch';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 
 const NAV_ITEMS = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/analytics', label: 'Analytics', icon: Activity },
     { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/documents', label: 'Documents', icon: FileText },
+    { href: '/admin/sessions', label: 'Sessions', icon: FileText },
+    { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -18,30 +25,138 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const router = useRouter();
     const pathname = usePathname();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    
+    // Lock Screen State
+    const [isCheckingLock, setIsCheckingLock] = useState(true);
+    const [isLocked, setIsLocked] = useState(true);
+    const [password, setPassword] = useState('');
+    const [unlockError, setUnlockError] = useState('');
+    const [isUnlocking, setIsUnlocking] = useState(false);
 
-    // Redirect non-admin users
+    // Check lock only if admin
     useEffect(() => {
-        if (!isLoading && (!user || !isAdmin)) {
-            router.push('/');
+        if (!isLoading && user && isAdmin) {
+            checkLockStatus();
+        } else if (!isLoading) {
+            setIsCheckingLock(false);
         }
-    }, [isLoading, user, isAdmin, router]);
+    }, [isLoading, user, isAdmin]);
+
+    async function checkLockStatus() {
+        // Always require password on every page load — no caching
+        setIsLocked(true);
+        setIsCheckingLock(false);
+    }
+
+    async function handleUnlock(e: React.FormEvent) {
+        e.preventDefault();
+        setIsUnlocking(true);
+        setUnlockError('');
+
+        try {
+            const res = await authFetch('/api/admin/verify-admin-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ admin_password: password }),
+            });
+            
+            if (res.ok) {
+                setIsLocked(false);
+                setUnlockError('');
+            } else {
+                const data = await res.json();
+                setUnlockError(data.detail || 'Incorrect password');
+            }
+        } catch {
+            setUnlockError('Network error');
+        } finally {
+            setIsUnlocking(false);
+        }
+    }
 
     // Close sidebar on route change on mobile
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsSidebarOpen(false);
     }, [pathname]);
 
-    if (isLoading) {
+    if (isLoading || isCheckingLock) {
         return (
-            <div className="min-h-svh flex items-center justify-center bg-background">
+            <div className="min-h-svh flex flex-col items-center justify-center bg-background gap-4">
                 <Loader2 className="size-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground animate-pulse">Verifying access...</p>
             </div>
         );
     }
 
     if (!user || !isAdmin) {
-        return null;
+        return (
+            <div className="min-h-svh flex items-center justify-center bg-slate-50 dark:bg-background p-4">
+                <Card className="w-full max-w-md shadow-2xl border-destructive/20">
+                    <CardHeader className="text-center space-y-2 pb-6">
+                        <div className="mx-auto bg-destructive/10 w-16 h-16 rounded-full flex items-center justify-center mb-2">
+                            <ShieldAlert className="size-8 text-destructive" />
+                        </div>
+                        <CardTitle className="text-2xl font-serif">Access Denied</CardTitle>
+                        <CardDescription>
+                            You do not have administrator privileges to view this page. 
+                            {user ? ` (Logged in as ${user.email} with role: ${user.role})` : ' (Not logged in)'}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardFooter>
+                        <Button variant="default" onClick={() => router.push('/')} className="w-full">
+                            Return to App
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
+        );
+    }
+
+    if (isLocked) {
+        return (
+            <div className="min-h-svh flex items-center justify-center bg-slate-50 dark:bg-background p-4">
+                <Card className="w-full max-w-md shadow-2xl border-primary/20">
+                    <CardHeader className="text-center space-y-2 pb-6">
+                        <div className="mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-2">
+                            <Lock className="size-8 text-primary" />
+                        </div>
+                        <CardTitle className="text-2xl font-serif">Admin Locked</CardTitle>
+                        <CardDescription>
+                            Please enter your Admin Password to continue. If you haven&apos;t set one, just submit empty.
+                        </CardDescription>
+                    </CardHeader>
+                    <form onSubmit={handleUnlock}>
+                        <CardContent className="space-y-4">
+                            {unlockError && (
+                                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                                    <ShieldAlert className="size-4" />
+                                    {unlockError}
+                                </div>
+                            )}
+                            <div className="space-y-2">
+                                <Input
+                                    type="password"
+                                    placeholder="Enter Admin Password..."
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    autoFocus
+                                    className="h-12 text-center text-lg tracking-widest"
+                                />
+                            </div>
+                        </CardContent>
+                        <CardFooter className="flex flex-col gap-3">
+                            <Button type="submit" className="w-full h-12 text-md" disabled={isUnlocking}>
+                                {isUnlocking ? <Loader2 className="size-5 animate-spin mr-2" /> : null}
+                                Unlock Admin Panel
+                            </Button>
+                            <Button type="button" variant="ghost" onClick={() => router.push('/')} className="w-full">
+                                Return to App
+                            </Button>
+                        </CardFooter>
+                    </form>
+                </Card>
+            </div>
+        );
     }
 
     return (

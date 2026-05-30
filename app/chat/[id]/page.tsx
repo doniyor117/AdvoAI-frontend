@@ -35,7 +35,9 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     chatTitle,
     attachments,
     uploadFile,
-    removeAttachment
+    removeAttachment,
+    quotedText,
+    setQuotedText
   } = useChatManager(resolvedParams.id);
 
   return (
@@ -92,6 +94,8 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           attachments={attachments}
           uploadFile={uploadFile}
           removeAttachment={removeAttachment}
+          quotedText={quotedText}
+          setQuotedText={setQuotedText}
         />
       )}
 

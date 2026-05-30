@@ -3,7 +3,7 @@
 import React, { useState, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, ChevronRight, Copy, ThumbsUp, ThumbsDown, Share2, Check, Image as ImageIcon } from 'lucide-react';
+import { FileText, ChevronRight, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -38,33 +38,76 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       className={`flex flex-col w-full py-4 md:py-6 scroll-mt-24 md:scroll-mt-28 ${isUser ? 'items-end' : 'items-start'}`}
     >
-      <div className={`${isUser
-          ? 'w-fit max-w-[85%] md:max-w-2xl bg-secondary text-secondary-foreground rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm'
-          : 'w-full bg-transparent py-4 px-6 md:px-8 md:py-8'
-        }`}>
-        
-        {isUser && message.attachments && message.attachments.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {message.attachments.map((file, idx) => (
+      {/* ── Attachments: rendered OUTSIDE and ABOVE the text bubble ── */}
+      {isUser && message.attachments && message.attachments.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2 justify-end max-w-[85%] md:max-w-2xl">
+          {message.attachments.map((file, idx) => {
+            const isImage = (file.mime_type || '').startsWith('image/');
+            const hasPreview = !!(file.local_url || file.uri);
+            const ext = file.display_name.split('.').pop()?.toLowerCase() || 'file';
+
+            const iconColors: Record<string, string> = {
+              pdf:  'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
+              doc:  'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+              docx: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+              txt:  'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+              csv:  'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+              md:   'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+              rtf:  'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
+              html: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
+            };
+            const iconColor = iconColors[ext] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+
+            return (
               <button
                 key={idx}
                 type="button"
                 onClick={() => onAttachmentClick && onAttachmentClick(file)}
-                className="flex items-center gap-2 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors border border-black/10 dark:border-white/10 rounded-xl p-2 pr-4 w-fit shadow-sm text-left"
+                className={`relative flex flex-col overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] w-20 h-20 flex-shrink-0 ${hasPreview ? 'cursor-pointer' : 'cursor-default'}`}
               >
-                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                  {(file.mime_type || '').startsWith('image/') ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-                </div>
-                <div className="flex flex-col max-w-[120px]">
-                  <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">{file.display_name}</span>
-                </div>
+                {isImage && file.local_url ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={file.local_url}
+                      alt={file.display_name}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pt-3 pb-1">
+                      <span className="text-[8px] text-white font-medium leading-tight truncate block">{file.display_name}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className={`w-full h-full flex flex-col items-center justify-center gap-1 ${iconColor} px-1`}>
+                    <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/60 dark:bg-black/20 mb-0.5">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wide">{ext.slice(0, 4)}</span>
+                    </div>
+                    <span className="text-[8px] font-medium w-full text-center truncate px-1 opacity-80 leading-tight">{file.display_name}</span>
+                  </div>
+                )}
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
+      )}
 
+      {/* ── Text bubble ── */}
+      <div className={`${isUser
+          ? 'w-fit max-w-[85%] md:max-w-2xl bg-secondary text-secondary-foreground rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm'
+          : 'w-full bg-transparent py-4 px-6 md:px-8 md:py-8'
+        }`}>
         <div className={`prose max-w-none break-words ${isUser ? 'prose-sm md:prose-base prose-slate dark:prose-invert prose-p:my-0 prose-headings:my-0 font-sans font-medium text-slate-700 dark:text-slate-200' : 'prose-slate dark:prose-invert font-serif text-base md:text-lg leading-[1.6] md:leading-[1.7] prose-p:mb-6 prose-ul:mb-6 prose-ol:mb-6'}`}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              blockquote: ({node, ...props}) => (
+                <div className={`relative pl-8 pr-4 py-3 my-3 rounded-2xl text-[13px] md:text-sm font-normal italic leading-relaxed ${isUser ? 'bg-black/5 dark:bg-black/20 text-slate-700 dark:text-slate-300' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-white/5'}`}>
+                  <Quote className={`absolute top-3 left-3 w-4 h-4 rotate-180 opacity-40 ${isUser ? 'text-slate-500' : 'text-primary'}`} />
+                  <div className="[&>p]:m-0">{props.children}</div>
+                </div>
+              )
+            }}
+          >
             {message.text}
           </ReactMarkdown>
         </div>

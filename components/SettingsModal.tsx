@@ -36,8 +36,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passSaveState, setPassSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [passError, setPassError] = useState('');
+  const [passSaveState, setPassSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  // Admin Password Update State
+  const [currentAdminPassword, setCurrentAdminPassword] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [confirmNewAdminPassword, setConfirmNewAdminPassword] = useState('');
+  const [adminPassError, setAdminPassError] = useState('');
+  const [adminPassSaveState, setAdminPassSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const [emailStep, setEmailStep] = useState<'request' | 'verify'>('request');
   const [newEmail, setNewEmail] = useState('');
@@ -47,6 +54,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState('');
+
+  const [allowDataCollection, setAllowDataCollection] = useState(user?.allow_data_collection ?? true);
+  const [privacySaveState, setPrivacySaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    if (user && user.allow_data_collection !== undefined) {
+      setAllowDataCollection(user.allow_data_collection);
+    }
+  }, [user]);
 
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const { renderGoogleButton, isAvailable: isGoogleAvailable } = useGoogleAuth({
@@ -91,6 +107,37 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     } catch {
       setPassSaveState('error');
       setPassError('An unexpected error occurred');
+    }
+  }
+
+  async function handleUpdateAdminPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (newAdminPassword !== confirmNewAdminPassword) {
+      setAdminPassError('New passwords do not match');
+      return;
+    }
+    setAdminPassSaveState('saving');
+    setAdminPassError('');
+    try {
+      const res = await authFetch('/api/account/update-admin-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_admin_password: currentAdminPassword, new_admin_password: newAdminPassword }),
+      });
+      const data = await safeJson(res);
+      if (res.ok) {
+        setAdminPassSaveState('saved');
+        setCurrentAdminPassword('');
+        setNewAdminPassword('');
+        setConfirmNewAdminPassword('');
+        setTimeout(() => setAdminPassSaveState('idle'), 3000);
+      } else {
+        setAdminPassSaveState('error');
+        setAdminPassError(data.detail || 'Failed to update admin password');
+      }
+    } catch {
+      setAdminPassSaveState('error');
+      setAdminPassError('An unexpected error occurred');
     }
   }
 
@@ -199,11 +246,35 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (isOpen && user) {
       const timer = setTimeout(() => {
         setFullName(user.full_name || '');
+        setAllowDataCollection(user.allow_data_collection ?? true);
         setSaveState('idle');
       }, 0);
       return () => clearTimeout(timer);
     }
   }, [isOpen, user]);
+
+  async function handleSavePrivacy(newVal: boolean) {
+    setAllowDataCollection(newVal);
+    setPrivacySaveState('saving');
+    try {
+      const res = await authFetch('/api/account/update-privacy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allow_data_collection: newVal }),
+      });
+      if (res.ok) {
+        setPrivacySaveState('saved');
+        await refreshUser();
+        setTimeout(() => setPrivacySaveState('idle'), 2000);
+      } else {
+        setPrivacySaveState('error');
+        setAllowDataCollection(!newVal); // revert
+      }
+    } catch {
+      setPrivacySaveState('error');
+      setAllowDataCollection(!newVal); // revert
+    }
+  }
 
   async function handleSaveAccount(e: React.FormEvent) {
     e.preventDefault();
@@ -469,6 +540,35 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       </form>
                     </section>
 
+                    {/* Admin Password Update */}
+                    {user?.role === 'admin' && (
+                      <section className="pt-6 border-t border-slate-200 dark:border-slate-800">
+                        <h3 className="text-xs md:text-sm font-semibold text-slate-900 dark:text-[#E6EDF3] mb-3 md:mb-4 uppercase tracking-wider">
+                          Update Admin Password
+                        </h3>
+                        <p className="text-sm text-slate-500 mb-4">Set or change your secondary password used to unlock the Admin Panel.</p>
+                        <form onSubmit={handleUpdateAdminPassword} className="space-y-4">
+                          {adminPassError && <p className="text-sm text-red-500">{adminPassError}</p>}
+                          <div className="space-y-1.5">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Current Admin Password (leave empty if none)</label>
+                            <input type="password" value={currentAdminPassword} onChange={(e) => setCurrentAdminPassword(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0D1117] text-slate-900 dark:text-[#E6EDF3] text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">New Admin Password</label>
+                            <input type="password" value={newAdminPassword} onChange={(e) => setNewAdminPassword(e.target.value)} required minLength={8} className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0D1117] text-slate-900 dark:text-[#E6EDF3] text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Confirm New Admin Password</label>
+                            <input type="password" value={confirmNewAdminPassword} onChange={(e) => setConfirmNewAdminPassword(e.target.value)} required minLength={8} className="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0D1117] text-slate-900 dark:text-[#E6EDF3] text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                          </div>
+                          <button type="submit" disabled={adminPassSaveState === 'saving'} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-slate-900 dark:bg-slate-700 text-white">
+                            {adminPassSaveState === 'saving' && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {adminPassSaveState === 'saved' ? 'Saved' : 'Update Admin Password'}
+                          </button>
+                        </form>
+                      </section>
+                    )}
+
                     {/* Email Change */}
                     <section>
                       <h3 className="text-xs md:text-sm font-semibold text-slate-900 dark:text-[#E6EDF3] mb-3 md:mb-4 uppercase tracking-wider">
@@ -540,6 +640,34 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           </div>
                         )}
                       </div>
+                    </section>
+
+                    {/* Privacy */}
+                    <section>
+                      <h3 className="text-xs md:text-sm font-semibold text-slate-900 dark:text-[#E6EDF3] mb-3 md:mb-4 uppercase tracking-wider">
+                        Data & Privacy
+                      </h3>
+                      <div className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
+                        <div className="pr-4">
+                          <p className="font-medium text-slate-900 dark:text-[#E6EDF3] text-sm">Allow session review for product improvement</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            If enabled, your anonymized chat sessions and usage statistics can be used by our team to improve the AdvoAI system.
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={allowDataCollection}
+                            onChange={(e) => handleSavePrivacy(e.target.checked)}
+                            disabled={privacySaveState === 'saving'}
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-primary"></div>
+                        </label>
+                      </div>
+                      {privacySaveState === 'error' && (
+                        <p className="text-xs text-red-500 mt-2">Failed to update privacy settings. Please try again.</p>
+                      )}
                     </section>
                   </div>
                 )}

@@ -63,6 +63,7 @@ export function useChatManager(chatId?: string) {
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [quotedText, setQuotedText] = useState('');
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [activeAttachment, setActiveAttachment] = useState<FileAttachment | null>(null);
   const [isInsightOpen, setIsInsightOpen] = useState(false);
@@ -303,10 +304,19 @@ export function useChatManager(chatId?: string) {
 
     const currentAttachments = [...attachments];
 
+    // ── Prepend Quote if exists ──────────────────────────────
+    let finalPrompt = trimmed;
+    if (quotedText) {
+      // Split the quote by newlines and prepend > to each line to form a proper markdown blockquote
+      const quoteBlock = quotedText.split('\n').map(line => `> ${line}`).join('\n');
+      finalPrompt = `${quoteBlock}\n\n${trimmed}`;
+      setQuotedText(''); // Clear after using
+    }
+
     const newUserMsg: Message = {
       id: generateId(),
       role: 'user',
-      text: trimmed,
+      text: finalPrompt,
       attachments: currentAttachments,
     };
 
@@ -370,7 +380,7 @@ export function useChatManager(chatId?: string) {
     setAttachments([]);
     setIsLoading(true);
 
-    sendToBackend(trimmed, sessionId, currentAttachments)
+    sendToBackend(finalPrompt, sessionId, currentAttachments)
       .then(result => {
         if (result.session_id && currentChatId) {
           setSessionId(result.session_id);
@@ -400,7 +410,7 @@ export function useChatManager(chatId?: string) {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [chatId, isLoading, sessionId, isAuthenticated, addSession, router, sendToBackend, attachments]);
+  }, [chatId, isLoading, sessionId, isAuthenticated, addSession, router, sendToBackend, attachments, quotedText]);
 
   // Handle pending question after redirect (new chat flow)
   useEffect(() => {
@@ -466,9 +476,7 @@ export function useChatManager(chatId?: string) {
   const handleAttachmentClick = useCallback((attachment: FileAttachment) => {
     setActiveAttachment(attachment);
     setActiveCitation(null);
-    if (!attachment.mime_type.startsWith('image/')) {
-      setIsInsightOpen(true);
-    }
+    setIsInsightOpen(true);
   }, []);
 
   const closeInsightPanel = useCallback(() => {
@@ -666,5 +674,7 @@ function getFileValidationError(file: File): string | null {
     activeFeature,
     setActiveFeature,
     chatTitle,
+    quotedText,
+    setQuotedText,
   };
 }

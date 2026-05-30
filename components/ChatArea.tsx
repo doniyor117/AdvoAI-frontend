@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft } from 'lucide-react';
+import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft, Quote } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageBubble } from './MessageBubble';
@@ -11,6 +11,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSessions } from '@/hooks/useSessions';
+import { usePublicSettings } from '@/hooks/usePublicSettings';
+import { TextSelectionTooltip } from './TextSelectionTooltip';
 import { useRouter, useParams } from 'next/navigation';
 
 interface ChatAreaProps {
@@ -27,7 +29,9 @@ interface ChatAreaProps {
   attachments?: FileAttachment[];
   uploadFile?: (file: File) => void;
   removeAttachment?: (idx: number) => void;
-        onAttachmentClick?: (attachment: FileAttachment) => void;
+  onAttachmentClick?: (attachment: FileAttachment) => void;
+  quotedText?: string;
+  setQuotedText?: (val: string) => void;
 }
 
 
@@ -71,7 +75,9 @@ export function ChatArea({
   attachments = [],
   uploadFile,
   removeAttachment,
-  onAttachmentClick
+  onAttachmentClick,
+  quotedText = '',
+  setQuotedText
 }: ChatAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -83,12 +89,28 @@ export function ChatArea({
   const [editingTitleValue, setEditingTitleValue] = useState('');
   const titleMenuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const { t } = useLanguage();
   const { user } = useAuth();
   const { deleteSession, updateSessionTitle, togglePinSession, sessions } = useSessions();
   const router = useRouter();
   const params = useParams();
   const currentChatId = params?.id as string | undefined;
+  const { settings } = usePublicSettings();
+
+  const handleQuoteSelection = (text: string) => {
+    if (setQuotedText) {
+      setQuotedText(text);
+      setTimeout(() => {
+        if (inputRef.current) {
+            inputRef.current.focus();
+        } else {
+            const textarea = document.querySelector('textarea');
+            if (textarea) textarea.focus();
+        }
+      }, 150);
+    }
+  };
 
   const currentSession = currentChatId ? sessions.find(s => s.id === currentChatId) : null;
   const isPinned = currentSession?.isPinned;
@@ -98,7 +120,6 @@ export function ChatArea({
     const prompts = t('chat.empty_state_prompts') as string[];
     if (prompts && Array.isArray(prompts) && prompts.length > 0) {
       const shuffled = [...prompts].sort(() => 0.5 - Math.random());
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRandomPrompts(shuffled.slice(0, 3));
     }
   }, [t, currentChatId]);
@@ -256,6 +277,27 @@ export function ChatArea({
             : 'bg-[#FDFBF7] dark:bg-[#262626] border-slate-200/60 dark:border-white/5 rounded-[24px] md:rounded-3xl shadow-xl md:shadow-xl border mx-2 mb-2 md:mx-0 md:mb-0'
         } ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
       >
+        {quotedText && (
+          <div className="flex items-center justify-between mx-4 mt-3 mb-1 p-2.5 bg-slate-100 dark:bg-[#1C2128] border border-slate-200 dark:border-white/5 rounded-xl group/quote">
+            <div className="flex items-center gap-2 overflow-hidden text-slate-700 dark:text-slate-300">
+              <div className="w-5 h-5 flex items-center justify-center bg-white dark:bg-[#0d1117] rounded shadow-sm text-amber-500 flex-shrink-0">
+                <Quote className="w-3 h-3" />
+              </div>
+              <span className="text-[11px] sm:text-xs font-medium truncate">
+                {t('chat.quote_selection')}: <span className="opacity-80 font-normal">&quot;{quotedText.substring(0, 40)}{quotedText.length > 40 ? '...' : ''}&quot;</span>
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setQuotedText?.('')}
+              className="p-1 rounded-md text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-600 dark:hover:text-slate-200 transition-colors ml-2 flex-shrink-0"
+              aria-label="Remove quote"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {attachments.length > 0 && removeAttachment && (
           <div className="flex items-center gap-3 px-5 pt-4 pb-1 flex-wrap">
             {attachments.map((file, idx) => (
@@ -266,26 +308,44 @@ export function ChatArea({
                     onAttachmentClick(file);
                   }
                 }}
-                className={`relative flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-white/10 rounded-2xl p-2 w-20 h-20 shadow-sm group ${(!file.is_uploading && file.local_url) ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-[#222]' : ''}`}
+                className={`relative flex-shrink-0 w-20 h-20 rounded-2xl shadow-sm group overflow-hidden border border-slate-200 dark:border-white/10 ${(!file.is_uploading && file.local_url) ? 'cursor-pointer' : ''}`}
               >
-                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 relative overflow-hidden">
-                  {file.is_uploading ? (
-                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                  ) : file.mime_type?.startsWith('image/') && file.local_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={file.local_url} alt={file.display_name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-[9px] font-bold uppercase tracking-wider">{file.display_name.split('.').pop()?.slice(0, 4) || 'DOC'}</span>
-                  )}
-                </div>
-                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400 w-full text-center truncate px-1">{file.display_name}</span>
+                {/* Full-square thumbnail for images, file card for docs */}
+                {file.is_uploading ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-slate-50 dark:bg-[#1a1a1a]">
+                    <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-[9px] text-slate-400">Uploading…</span>
+                  </div>
+                ) : file.mime_type?.startsWith('image/') && file.local_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={file.local_url}
+                    alt={file.display_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-[#1a1a1a] px-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-500">
+                      {file.display_name.split('.').pop()?.slice(0, 4) || 'DOC'}
+                    </span>
+                    <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 w-full text-center truncate px-1">
+                      {file.display_name}
+                    </span>
+                  </div>
+                )}
+                {/* Gradient label strip for images */}
+                {!file.is_uploading && file.mime_type?.startsWith('image/') && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1.5 pt-3 pb-1">
+                    <span className="text-[9px] text-white font-medium truncate block">{file.display_name}</span>
+                  </div>
+                )}
                 <button 
                   type="button" 
                   onClick={(e) => {
                     e.stopPropagation();
                     removeAttachment(idx);
                   }}
-                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-slate-200 dark:bg-[#333] border border-slate-300 dark:border-[#555] flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center text-white shadow-sm opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -295,6 +355,7 @@ export function ChatArea({
         )}
 
         <TextareaAutosize
+          ref={inputRef}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => {
@@ -601,13 +662,15 @@ export function ChatArea({
       </div>
 
       {/* Input Area (Sticky Bottom when messages exist OR on mobile when empty) */}
-        {(messages.length > 0) && (
+      {(messages.length > 0) && (
         <div className={`absolute bottom-0 left-0 right-0 md:p-4 flex-shrink-0 z-20 pb-0 md:pb-6 pt-12 pointer-events-none bg-gradient-to-t from-background via-background/90 to-transparent ${messages.length === 0 ? 'block md:hidden' : 'block'}`}>
           <div className="pointer-events-auto">
             {renderInputArea(false)}
           </div>
         </div>
       )}
+
+      <TextSelectionTooltip onQuote={handleQuoteSelection} />
     </main>
   );
 }

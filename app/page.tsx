@@ -9,7 +9,8 @@ import { AgreementSummary } from '@/components/AgreementSummary';
 import { CompareContractsView } from '@/components/CompareContractsView';
 import { ContractWizardView } from '@/components/ContractWizardView';
 import { motion, AnimatePresence } from 'motion/react';
-import { X } from 'lucide-react';
+import { X, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import { usePublicSettings } from '@/hooks/usePublicSettings';
 
 function AppContent() {
   const {
@@ -33,13 +34,42 @@ function AppContent() {
     chatTitle,
     attachments,
     uploadFile,
-    removeAttachment
+    removeAttachment,
+    quotedText,
+    setQuotedText
   } = useChatManager();
 
+  const { settings } = usePublicSettings();
+  const notification = settings?.global_notification;
+  const notificationType = settings?.global_notification_type || 'info';
+
+  const getNotificationIcon = () => {
+    switch(notificationType) {
+      case 'error': return <AlertCircle className="w-4 h-4 mr-2" />;
+      case 'warning': return <AlertTriangle className="w-4 h-4 mr-2" />;
+      default: return <Info className="w-4 h-4 mr-2" />;
+    }
+  };
+
+  const getNotificationColors = () => {
+    switch(notificationType) {
+      case 'error': return "bg-red-500 text-white";
+      case 'warning': return "bg-amber-500 text-white";
+      default: return "bg-blue-500 text-white";
+    }
+  };
+
   return (
-    <div className="flex h-screen w-full bg-[#fafafa] dark:bg-[#0a0a0a] overflow-hidden relative">
-      <Sidebar 
-        isOpen={isSidebarOpen} 
+    <div className="flex flex-col h-screen w-full bg-[#fafafa] dark:bg-[#0a0a0a] overflow-hidden relative">
+      {notification && (
+        <div className={`w-full ${getNotificationColors()} px-4 py-2 text-sm flex items-center justify-center font-medium z-50 shadow-sm`}>
+          {getNotificationIcon()}
+          <span>{notification}</span>
+        </div>
+      )}
+      <div className="flex flex-1 overflow-hidden relative">
+        <Sidebar 
+          isOpen={isSidebarOpen} 
         setIsOpen={setIsSidebarOpen} 
         onNewConsultation={() => { 
           setIsSidebarOpen(false); 
@@ -90,6 +120,8 @@ function AppContent() {
           attachments={attachments}
           uploadFile={uploadFile}
           removeAttachment={removeAttachment}
+          quotedText={quotedText}
+          setQuotedText={setQuotedText}
         />
       )}
 
@@ -127,6 +159,7 @@ function AppContent() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

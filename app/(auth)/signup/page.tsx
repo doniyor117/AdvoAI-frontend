@@ -24,6 +24,8 @@ export default function SignupPage() {
     const [otp, setOtp] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [allowDataCollection, setAllowDataCollection] = useState(false);
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -33,7 +35,11 @@ export default function SignupPage() {
         setIsGoogleLoading(true);
         const result = await loginWithGoogle(credential);
         if (result.success) {
-            router.push('/');
+            if (result.requiresConsent) {
+                router.push('/consent');
+            } else {
+                router.push('/');
+            }
         } else {
             setError(result.error || 'Google sign-in failed.');
         }
@@ -74,6 +80,11 @@ export default function SignupPage() {
             return;
         }
 
+        if (!termsAccepted) {
+            setError('You must accept the Terms of Service and Privacy Policy.');
+            return;
+        }
+
         setIsSubmitting(true);
         const result = await sendRegistrationOtp(email);
         
@@ -95,7 +106,7 @@ export default function SignupPage() {
         }
 
         setIsSubmitting(true);
-        const result = await signup(email, password, fullName, otp);
+        const result = await signup(email, password, fullName, otp, allowDataCollection);
 
         if (result.success) {
             router.push('/');
@@ -213,7 +224,46 @@ export default function SignupPage() {
                                                 </div>
                                             </div>
 
-                                            <Button type="submit" className="w-full" disabled={isSubmitting}>
+                                            <div className="space-y-4 py-2 border-t mt-4 border-slate-100 dark:border-white/5">
+                                                <label className="flex items-start gap-3 cursor-pointer group">
+                                                    <div className="flex items-center h-5">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={termsAccepted}
+                                                            onChange={(e) => setTermsAccepted(e.target.checked)}
+                                                            className="w-4 h-4 border border-slate-300 rounded bg-slate-50 focus:ring-2 focus:ring-primary dark:bg-slate-900 dark:border-slate-600 appearance-none checked:bg-primary checked:border-primary relative
+                                                                after:content-[''] after:absolute after:hidden checked:after:block after:left-1/2 after:top-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-1.5 after:h-2.5 after:border-r-2 after:border-b-2 after:border-white after:rotate-45"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                                                            I agree to the <Link href="/terms" target="_blank" className="text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:text-blue-800 dark:hover:text-blue-300">Terms of Service</Link> and <Link href="/privacy" target="_blank" className="text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:text-blue-800 dark:hover:text-blue-300">Privacy Policy</Link> <span className="text-destructive">*</span>
+                                                        </span>
+                                                    </div>
+                                                </label>
+
+                                                <label className="flex items-start gap-3 cursor-pointer group bg-blue-50/50 dark:bg-blue-950/20 p-3 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                                                    <div className="flex items-center h-5 mt-0.5">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={allowDataCollection}
+                                                            onChange={(e) => setAllowDataCollection(e.target.checked)}
+                                                            className="w-4 h-4 border border-blue-200 rounded bg-white focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-blue-800 appearance-none checked:bg-blue-600 checked:border-blue-600 relative
+                                                                after:content-[''] after:absolute after:hidden checked:after:block after:left-1/2 after:top-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-1.5 after:h-2.5 after:border-r-2 after:border-b-2 after:border-white after:rotate-45"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                                            Allow session review for product improvement
+                                                        </span>
+                                                        <span className="text-xs text-blue-700/80 dark:text-blue-300/80 mt-1 leading-snug">
+                                                            Optional: Help us make AdvoAI better by allowing our team to review anonymized versions of your chats. You can turn this off later.
+                                                        </span>
+                                                    </div>
+                                                </label>
+                                            </div>
+
+                                            <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
                                                 {isSubmitting ? (
                                                     <>
                                                         <Loader2 className="size-4 animate-spin mr-2" />

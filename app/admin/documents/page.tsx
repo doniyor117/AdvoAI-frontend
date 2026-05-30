@@ -12,7 +12,9 @@ import {
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from '@/components/ui/dialog';
-import { Loader2, Plus, ExternalLink, Pencil, Trash2, Eye, X } from 'lucide-react';
+import { Loader2, Plus, ExternalLink, Pencil, Trash2, Eye, X, Search, Lock } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { authFetch } from '@/lib/authFetch';
@@ -24,25 +26,34 @@ interface DocumentRecord {
     act_type: string | null;
     doc_date: string | null;
     source_url: string;
+    category?: string;
     is_active: boolean;
     created_at: string;
     chunk_count: number;
 }
 
 export default function AdminDocumentsPage() {
+    const { user } = useAuth();
+    const isRootAdmin = user?.role === 'root_admin';
     const [documents, setDocuments] = useState<DocumentRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
     // Ingest form
-    const [ingestUrl, setIngestUrl] = useState('');
+    const [ingestUrlsText, setIngestUrlsText] = useState('');
+    const [ingestCategory, setIngestCategory] = useState('General');
     const [isIngesting, setIsIngesting] = useState(false);
     const [ingestResult, setIngestResult] = useState('');
     const [dialogOpen, setDialogOpen] = useState(false);
 
-    // Edit title
+    // Ingestion Jobs
+    const [jobs, setJobs] = useState<any[]>([]);
+
+    // Edit metadata
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
+    const [editCategory, setEditCategory] = useState('');
+    const [editActType, setEditActType] = useState('');
 
     // View document
     const [viewingDoc, setViewingDoc] = useState<{ title: string; markdown: string; source_url: string } | null>(null);
@@ -52,9 +63,32 @@ export default function AdminDocumentsPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Filters and Sorting
+    const [searchTerm, setSearchTerm] = useState('');
+    const [actTypeFilter, setActTypeFilter] = useState('all');
+    const [categoryFilter, setCategoryFilter] = useState('all');
+
     useEffect(() => {
         fetchDocuments();
+        fetchJobs();
+        const interval = setInterval(() => {
+            fetchJobs();
+        }, 3000);
+        return () => clearInterval(interval);
     }, []);
+
+    // Extract unique act types for the filter dropdown
+    const uniqueActTypes = Array.from(new Set(documents.map(d => d.act_type).filter(Boolean))) as string[];
+    const uniqueCategories = Array.from(new Set(documents.map(d => d.category).filter(Boolean))) as string[];
+
+    // Filter documents
+    const filteredDocuments = documents.filter(doc => {
+        const matchesSearch = (doc.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              (doc.source_doc_id || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = actTypeFilter === 'all' || doc.act_type === actTypeFilter;
+        const matchesCategory = categoryFilter === 'all' || doc.category === categoryFilter;
+        return matchesSearch && matchesType && matchesCategory;
+    });
 
     async function fetchDocuments() {
         try {
@@ -69,9 +103,24 @@ export default function AdminDocumentsPage() {
         }
     }
 
+    async function fetchJobs() {
+        try {
+            const res = await authFetch('/api/admin/ingestion-jobs');
+            if (res.ok) {
+                const data = await res.json();
+                setJobs(data.jobs);
+            }
+        } catch {
+            // ignore
+        }
+    }
+
     async function handleIngest(e: React.FormEvent) {
         e.preventDefault();
-        if (!ingestUrl.trim()) return;
+        if (!ingestUrlsText.trim()) return;
+
+        const urls = ingestUrlsText.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+        if (urls.length === 0) return;
 
         setIsIngesting(true);
         setIngestResult('');
@@ -80,15 +129,16 @@ export default function AdminDocumentsPage() {
             const res = await authFetch('/api/admin/ingest', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: ingestUrl, device: 'cpu' }),
+                body: JSON.stringify({ urls, category: ingestCategory }),
             });
             const data = await res.json();
             if (res.ok) {
-                setIngestResult('✅ Document ingested successfully!');
-                setIngestUrl('');
-                fetchDocuments();
+                setIngestResult(`✅ ${data.message}`);
+                setIngestUrlsText('');
+                fetchJobs();
+                setTimeout(() => setDialogOpen(false), 2000);
             } else {
-                setIngestResult(`❌ ${data.detail || 'Ingestion failed.'}`);
+                setIngestResult(`❌ ${data.detail || 'Ingestion setup failed.'}`);
             }
         } catch {
             setIngestResult('❌ Network error during ingestion.');
@@ -97,21 +147,31 @@ export default function AdminDocumentsPage() {
         }
     }
 
-    async function handleSaveTitle(docId: string) {
+    async function handleSaveMetadata(docId: string) {
         if (!editTitle.trim()) return;
         try {
             await authFetch(`/api/admin/documents/${docId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: editTitle }),
+                body: JSON.stringify({ 
+                    title: editTitle, 
+                    category: editCategory, 
+                    act_type: editActType 
+                }),
             });
-            setDocuments(prev => prev.map(d => d.id === docId ? { ...d, title: editTitle } : d));
+            setDocuments(prev => prev.map(d => d.id === docId ? { ...d, title: editTitle, category: editCategory, act_type: editActType } : d));
         } catch {
             /* ignore */
         }
         setEditingId(null);
     }
-
+    
+    function startEditing(doc: DocumentRecord) {
+        setEditingId(doc.id);
+        setEditTitle(doc.title || doc.source_doc_id || '');
+        setEditCategory(doc.category || 'General');
+        setEditActType(doc.act_type || '');
+    }
     async function handleViewDocument(docId: string) {
         setIsLoadingView(true);
         try {
@@ -192,22 +252,31 @@ export default function AdminDocumentsPage() {
                         </DialogHeader>
                         <form onSubmit={handleIngest} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="ingestUrl">Document URL</Label>
-                                <Input
-                                    id="ingestUrl"
-                                    type="url"
-                                    placeholder="https://lex.uz/docs/-7904841"
-                                    value={ingestUrl}
-                                    onChange={(e) => setIngestUrl(e.target.value)}
+                                <Label htmlFor="urls">Lex.uz Document URLs (One per line)</Label>
+                                <textarea
+                                    id="urls"
+                                    value={ingestUrlsText}
+                                    onChange={(e) => setIngestUrlsText(e.target.value)}
+                                    placeholder="https://lex.uz/docs/12345&#10;https://lex.uz/docs/67890"
+                                    className="w-full min-h-[100px] flex rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    disabled={isIngesting}
                                     required
                                 />
                             </div>
-
+                            <div className="space-y-2">
+                                <Label htmlFor="category">Category/Folder</Label>
+                                <Input
+                                    id="category"
+                                    value={ingestCategory}
+                                    onChange={(e) => setIngestCategory(e.target.value)}
+                                    placeholder="e.g. Civil Code, Tax Code, Constitution"
+                                    disabled={isIngesting}
+                                    required
+                                />
+                            </div>
+                            
                             {ingestResult && (
-                                <div className={`rounded-lg px-3 py-2 text-sm ${ingestResult.startsWith('✅')
-                                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                                    : 'bg-destructive/10 text-destructive border border-destructive/20'
-                                    }`}>
+                                <div className={`p-3 rounded-md text-sm ${ingestResult.startsWith('✅') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'}`}>
                                     {ingestResult}
                                 </div>
                             )}
@@ -227,6 +296,89 @@ export default function AdminDocumentsPage() {
                 </Dialog>
             </div>
 
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        placeholder="Search by title or ID..."
+                        className="pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                <div className="w-full sm:w-[200px]">
+                    <Select value={actTypeFilter} onValueChange={setActTypeFilter}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Act Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Act Types</SelectItem>
+                            {uniqueActTypes.map(type => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="w-full sm:w-[200px]">
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Categories</SelectItem>
+                            {uniqueCategories.map(cat => (
+                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            {/* Bulk Ingestion Jobs Progress */}
+            {jobs.length > 0 && (
+                <Card className="overflow-hidden border-border/50 mb-6">
+                    <CardContent className="p-0 overflow-x-auto">
+                        <div className="p-4 border-b border-border/50 bg-muted/50 font-medium text-sm flex justify-between items-center">
+                            <span>Ingestion Jobs Progress</span>
+                            <Button variant="ghost" size="sm" onClick={fetchDocuments} className="h-8 text-xs">
+                                Refresh Documents
+                            </Button>
+                        </div>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>URL</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Time</TableHead>
+                                    <TableHead>Details</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {jobs.slice(0, 5).map((job) => (
+                                    <TableRow key={job.id}>
+                                        <TableCell className="font-mono text-xs truncate max-w-[200px]">{job.url}</TableCell>
+                                        <TableCell>
+                                            {job.status === 'completed' && <Badge className="bg-emerald-500">Completed</Badge>}
+                                            {job.status === 'processing' && <Badge className="bg-blue-500 animate-pulse">Processing</Badge>}
+                                            {job.status === 'pending' && <Badge variant="secondary">Pending</Badge>}
+                                            {job.status === 'failed' && <Badge variant="destructive">Failed</Badge>}
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                            {new Date(job.updated_at).toLocaleTimeString()}
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                            {job.error_message || '—'}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* Documents Table */}
             <Card className="overflow-hidden border-border/50">
                 <CardContent className="p-0 overflow-x-auto">
@@ -242,51 +394,71 @@ export default function AdminDocumentsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {documents.map((doc) => (
+                            {filteredDocuments.map((doc) => (
                                 <TableRow key={doc.id}>
                                     <TableCell>
                                         <div className="max-w-xs">
                                             {editingId === doc.id ? (
-                                                <div className="flex items-center gap-1">
+                                                <div className="flex flex-col gap-2">
                                                     <Input
                                                         value={editTitle}
                                                         onChange={(e) => setEditTitle(e.target.value)}
                                                         className="h-7 text-sm"
+                                                        placeholder="Title"
                                                         onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') handleSaveTitle(doc.id);
+                                                            if (e.key === 'Enter') handleSaveMetadata(doc.id);
                                                             if (e.key === 'Escape') setEditingId(null);
                                                         }}
                                                         autoFocus
                                                     />
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon-xs"
-                                                        onClick={() => handleSaveTitle(doc.id)}
-                                                    >
-                                                        ✓
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon-xs"
-                                                        onClick={() => setEditingId(null)}
-                                                    >
-                                                        <X className="size-3" />
-                                                    </Button>
+                                                    <div className="flex items-center gap-1">
+                                                        <Input
+                                                            value={editCategory}
+                                                            onChange={(e) => setEditCategory(e.target.value)}
+                                                            className="h-7 text-xs w-24"
+                                                            placeholder="Category"
+                                                        />
+                                                        <Input
+                                                            value={editActType}
+                                                            onChange={(e) => setEditActType(e.target.value)}
+                                                            className="h-7 text-xs w-24"
+                                                            placeholder="Type"
+                                                        />
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon-xs"
+                                                            onClick={() => handleSaveMetadata(doc.id)}
+                                                        >
+                                                            ✓
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon-xs"
+                                                            onClick={() => setEditingId(null)}
+                                                        >
+                                                            <X className="size-3" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <div className="font-medium text-sm text-foreground truncate" title={doc.title}>
+                                                    <div className="font-medium text-sm text-foreground whitespace-normal break-words" title={doc.title}>
                                                         {doc.title || doc.source_doc_id}
                                                     </div>
-                                                    <div className="text-xs text-muted-foreground font-mono">
-                                                        ID: {doc.source_doc_id}
+                                                    <div className="text-xs text-muted-foreground font-mono flex items-center gap-2 mt-1">
+                                                        <span>ID: {doc.source_doc_id}</span>
+                                                        {doc.category && doc.category !== 'General' && (
+                                                            <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">{doc.category}</Badge>
+                                                        )}
                                                     </div>
                                                 </>
                                             )}
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        {doc.act_type ? (
+                                        {editingId === doc.id ? (
+                                            <span className="text-xs text-muted-foreground italic">Editing...</span>
+                                        ) : doc.act_type ? (
                                             <Badge variant="outline" className="text-xs">{doc.act_type}</Badge>
                                         ) : (
                                             <span className="text-xs text-muted-foreground">—</span>
@@ -314,8 +486,8 @@ export default function AdminDocumentsPage() {
                                             <Button
                                                 variant="ghost"
                                                 size="icon-xs"
-                                                title="Edit Title"
-                                                onClick={() => { setEditingId(doc.id); setEditTitle(doc.title); }}
+                                                title="Edit Metadata"
+                                                onClick={() => startEditing(doc)}
                                             >
                                                 <Pencil className="size-4 text-muted-foreground" />
                                             </Button>
@@ -328,14 +500,25 @@ export default function AdminDocumentsPage() {
                                             >
                                                 <ExternalLink className="size-4 text-muted-foreground" />
                                             </a>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-xs"
-                                                title="Delete Document"
-                                                onClick={() => setDeletingId(doc.id)}
-                                            >
-                                                <Trash2 className="size-4 text-destructive" />
-                                            </Button>
+                                            {isRootAdmin ? (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon-xs"
+                                                    title="Delete Document"
+                                                    onClick={() => setDeletingId(doc.id)}
+                                                >
+                                                    <Trash2 className="size-4 text-destructive" />
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon-xs"
+                                                    title="Root admin only"
+                                                    disabled
+                                                >
+                                                    <Lock className="size-4 text-muted-foreground/40" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </TableCell>
                                 </TableRow>

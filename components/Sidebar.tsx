@@ -4,11 +4,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MessageSquare, Plus, Scale, X, PanelLeftClose, PanelLeftOpen, Search, Settings, User, LogOut, CreditCard, FileText, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn } from 'lucide-react';
+import { MessageSquare, Plus, Scale, X, PanelLeftClose, PanelLeftOpen, Search, Settings, User, LogOut, CreditCard, FileText, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { SettingsModal } from './SettingsModal';
 import { useSessions } from '@/hooks/useSessions';
 import { useRouter, useParams } from 'next/navigation';
@@ -109,6 +110,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
   const langMenuRef = useRef<HTMLDivElement>(null);
   const { t, lang, setLang } = useLanguage();
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { settings } = usePublicSettings();
 
   const { sessions, deleteSession, updateSessionTitle, togglePinSession, isHydrated } = useSessions();
   const router = useRouter();
@@ -333,8 +335,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
                           : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'
                         }`}
                     >
-                      <div className="flex items-center gap-3 overflow-hidden pr-6 flex-1">
-                        <MessageSquare className={`w-4 h-4 flex-shrink-0 ${currentChatId === session.id ? 'text-primary dark:text-[#1F6FEB]' : 'text-slate-400 dark:text-slate-500'}`} />
+                      <div className="flex items-center overflow-hidden pr-6 flex-1">
                         {editingSessionId === session.id ? (
                           <input
                             type="text"
@@ -350,7 +351,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
                             onClick={(e) => e.stopPropagation()}
                           />
                         ) : (
-                          <span className="truncate flex-1">{session.title}</span>
+                          <span className="truncate flex-1 font-medium">{session.title}</span>
                         )}
                         {session.isPinned && <Pin className="w-3 h-3 text-slate-400 flex-shrink-0" />}
                       </div>
@@ -461,6 +462,16 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
                                 <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                                 <span>{t('sidebar.settings')}</span>
                               </button>
+
+                              {settings?.ui_support_email && (
+                                <a
+                                  href={`mailto:${settings.ui_support_email}`}
+                                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 dark:text-slate-500"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                  <span>Contact Support</span>
+                                </a>
+                              )}
 
                               <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2" />
                               <button

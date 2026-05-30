@@ -103,11 +103,20 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
 
               <div className="flex-1 overflow-y-auto p-6 bg-[#FDFBF7] dark:bg-sidebar z-0 flex flex-col">
                 {activeAttachment ? (
-                  <iframe 
-                    src={activeAttachment.local_url || activeAttachment.uri} 
-                    className="w-full h-full flex-1 border-0 rounded-md bg-white dark:bg-black/20"
-                    title={activeAttachment.display_name}
-                  />
+                  activeAttachment.mime_type?.startsWith('image/') ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={activeAttachment.local_url || activeAttachment.uri}
+                      alt={activeAttachment.display_name}
+                      className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
+                    />
+                  ) : (
+                    <iframe
+                      src={activeAttachment.local_url || activeAttachment.uri}
+                      className="w-full h-full flex-1 border-0 rounded-md bg-white dark:bg-black/20"
+                      title={activeAttachment.display_name}
+                    />
+                  )
                 ) : (
                   <div className="prose prose-sm md:prose-base prose-slate dark:prose-invert prose-headings:font-semibold max-w-none text-slate-800 dark:text-[#E6EDF3] leading-relaxed">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>

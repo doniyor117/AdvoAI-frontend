@@ -41,6 +41,7 @@ export function useGoogleAuth({ onCredential }: UseGoogleAuthOptions) {
         // Check if already loaded
         if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
             scriptLoaded.current = true;
+            setIsLoaded(true);
             return;
         }
 
@@ -55,6 +56,12 @@ export function useGoogleAuth({ onCredential }: UseGoogleAuthOptions) {
         document.head.appendChild(script);
     }, []);
 
+    // Keep track of the latest onCredential callback without triggering effect re-runs
+    const credentialCallbackRef = useRef(onCredential);
+    useEffect(() => {
+        credentialCallbackRef.current = onCredential;
+    }, [onCredential]);
+
     // Initialize GIS when script is ready
     useEffect(() => {
         if (!GOOGLE_CLIENT_ID) return;
@@ -65,11 +72,10 @@ export function useGoogleAuth({ onCredential }: UseGoogleAuthOptions) {
                 window.google.accounts.id.initialize({
                     client_id: GOOGLE_CLIENT_ID,
                     callback: (response: { credential: string }) => {
-                        onCredential(response.credential);
+                        credentialCallbackRef.current(response.credential);
                     },
                     auto_select: false,
                     cancel_on_tap_outside: true,
-                    use_fedcm_for_prompt: true,
                 });
                 initialized.current = true;
             }
@@ -84,7 +90,7 @@ export function useGoogleAuth({ onCredential }: UseGoogleAuthOptions) {
             }, 200);
             return () => clearInterval(interval);
         }
-    }, [onCredential]);
+    }, []); // Empty dependency array thanks to ref
 
     const renderGoogleButton = useCallback((element: HTMLElement) => {
         if (!GOOGLE_CLIENT_ID) {
@@ -98,7 +104,7 @@ export function useGoogleAuth({ onCredential }: UseGoogleAuthOptions) {
                 size: 'large',
                 text: 'continue_with',
                 shape: 'rectangular',
-                width: '100%' // Set to 100% to fill container or let it auto-size
+                // Removed invalid width: '100%' - let it auto-size correctly
             });
         }
     }, []);
