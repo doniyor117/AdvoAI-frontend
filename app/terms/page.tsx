@@ -46,7 +46,7 @@ export default function TermsPage() {
 
                     <h2>1. Acceptance of Terms</h2>
                     <p>
-                        AdvoAI ("the Service") is provided "as is" by its development team. By creating an account and using the Service, you confirm that you have read, understood, and agreed to these Terms. If you do not agree, you must not use the Service.
+                        AdvoAI (&quot;the Service&quot;) is provided &quot;as is&quot; by its development team. By creating an account and using the Service, you confirm that you have read, understood, and agreed to these Terms. If you do not agree, you must not use the Service.
                     </p>
 
                     <h2>2. User Responsibilities & Acceptable Use</h2>

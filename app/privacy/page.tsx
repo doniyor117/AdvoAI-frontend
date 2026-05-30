@@ -33,7 +33,7 @@ export default function PrivacyPage() {
                     <p className="text-muted-foreground mb-8">Last Updated: May 2026</p>
 
                     <p>
-                        AdvoAI ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your personal information when you use our platform.
+                        AdvoAI (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your personal information when you use our platform.
                     </p>
 
                     <h2>1. Information We Collect</h2>
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
                     <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg p-4 my-6">
                         <h3 className="text-blue-800 dark:text-blue-500 font-semibold mt-0 mb-2">Session Review & Product Improvement</h3>
                         <p className="text-sm text-blue-900/80 dark:text-blue-200/80 mb-0">
-                            During registration, you may optionally consent to allow our team to review anonymized versions of your chat sessions. If you opt-in, we use this data solely to improve our AI prompts, document parsing, and overall product quality. <strong>You can withdraw this consent at any time</strong> from your Account Settings via the "Data & Privacy" toggle.
+                            During registration, you may optionally consent to allow our team to review anonymized versions of your chat sessions. If you opt-in, we use this data solely to improve our AI prompts, document parsing, and overall product quality. <strong>You can withdraw this consent at any time</strong> from your Account Settings via the &quot;Data &amp; Privacy&quot; toggle.
                         </p>
                     </div>
 
@@ -86,7 +86,7 @@ export default function PrivacyPage() {
 
                     <h2>7. Changes to this Policy</h2>
                     <p>
-                        We may update this Privacy Policy from time to time. We will notify you of any significant changes by updating the "Last Updated" date at the top of this page or by providing notice within the app.
+                        We may update this Privacy Policy from time to time. We will notify you of any significant changes by updating the &quot;Last Updated&quot; date at the top of this page or by providing notice within the app.
                     </p>
                 </div>
             </main>
