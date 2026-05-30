@@ -263,11 +263,11 @@ export function useChatManager(chatId?: string) {
     };
 
     if (filesToAttach.length > 0) {
-      body.attachments = filesToAttach.map(f => ({
-        uri: f.uri,
-        mime_type: f.mime_type,
-        name: f.name,
-        display_name: f.display_name,
+      body.attachments = filesToAttach.filter(f => f.uri).map(f => ({
+        uri: f.uri || '',
+        mime_type: f.mime_type || '',
+        name: f.name || '',
+        display_name: f.display_name || '',
         s3_key: f.s3_key || '',
       }));
     }
@@ -284,7 +284,8 @@ export function useChatManager(chatId?: string) {
 
     if (!res.ok) {
       const errData = await safeJson(res).catch(() => ({}));
-      throw new Error(errData.detail || `Request failed (${res.status})`);
+      const detailMsg = typeof errData.detail === 'object' ? JSON.stringify(errData.detail) : (errData.detail || `Request failed (${res.status})`);
+      throw new Error(detailMsg);
     }
 
     const data = await safeJson(res);
