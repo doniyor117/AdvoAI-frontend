@@ -7,6 +7,7 @@ import { FileText, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { authFetch } from '@/lib/authFetch';
 
 interface InsightPanelProps {
   isOpen: boolean;
@@ -19,6 +20,26 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
   const { t } = useLanguage();
   const panelRef = useRef<HTMLElement>(null);
   const isDragging = useRef(false);
+
+  // Resolve the preview URL: local blob URL → presigned R2 URL → null
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!activeAttachment) { setPreviewUrl(null); return; }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (activeAttachment.local_url) { setPreviewUrl(activeAttachment.local_url); return; }
+    if (activeAttachment.s3_key) {
+      let cancelled = false;
+      authFetch(`/api/chat/file/${encodeURIComponent(activeAttachment.s3_key)}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => { if (!cancelled && data?.url) setPreviewUrl(data.url); })
+        .catch(() => {});
+      return () => { cancelled = true; };
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPreviewUrl(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAttachment?.local_url, activeAttachment?.s3_key]);
 
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -106,16 +127,22 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
                   activeAttachment.mime_type?.startsWith('image/') ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={activeAttachment.local_url || activeAttachment.uri}
+                      src={previewUrl || ''}
                       alt={activeAttachment.display_name}
                       className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
                     />
-                  ) : (
+                  ) : previewUrl ? (
                     <iframe
-                      src={activeAttachment.local_url || activeAttachment.uri}
+                      src={previewUrl}
                       className="w-full h-full flex-1 border-0 rounded-md bg-white dark:bg-black/20"
                       title={activeAttachment.display_name}
                     />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
+                      <FileText className="w-12 h-12 opacity-30" />
+                      <p className="text-sm">{activeAttachment.display_name}</p>
+                      <p className="text-xs opacity-60">Preview not available</p>
+                    </div>
                   )
                 ) : (
                   <div className="prose prose-sm md:prose-base prose-slate dark:prose-invert prose-headings:font-semibold max-w-none text-slate-800 dark:text-[#E6EDF3] leading-relaxed">

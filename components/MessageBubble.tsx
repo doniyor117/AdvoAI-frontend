@@ -1,12 +1,98 @@
 'use client';
 
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { FileText, ChevronRight, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { authFetch } from '@/lib/authFetch';
+
+/**
+ * Fetches a presigned R2 URL for an attachment that has an s3_key but no local_url.
+ * Returns null while loading or if not applicable.
+ */
+function usePresignedUrl(file: FileAttachment): string | null {
+  const [url, setUrl] = useState<string | null>(file.local_url || null);
+
+  useEffect(() => {
+    // If we already have a local blob URL, use it directly
+    if (file.local_url) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUrl(file.local_url);
+      return;
+    }
+    // If there's an s3_key, fetch a presigned URL from the backend
+    if (file.s3_key) {
+      let cancelled = false;
+      authFetch(`/api/chat/file/${encodeURIComponent(file.s3_key)}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (!cancelled && data?.url) setUrl(data.url);
+        })
+        .catch(() => {}); // Fail silently — file card still shows
+      return () => { cancelled = true; };
+    }
+  }, [file.local_url, file.s3_key]);
+
+  return url;
+}
+
+/** A single attachment card — shows image thumbnail (local or from R2) or file-type card */
+function AttachmentThumbnail({
+  file,
+  onAttachmentClick,
+}: {
+  file: FileAttachment;
+  onAttachmentClick?: (f: FileAttachment) => void;
+}) {
+  const isImage = (file.mime_type || '').startsWith('image/');
+  const ext = file.display_name.split('.').pop()?.toLowerCase() || 'file';
+  const imgSrc = usePresignedUrl(file); // null while loading
+  const hasPreview = !!(imgSrc || file.s3_key);
+
+  const iconColors: Record<string, string> = {
+    pdf:  'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
+    doc:  'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+    docx: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+    txt:  'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+    csv:  'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+    md:   'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+    rtf:  'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
+    html: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
+  };
+  const iconColor = iconColors[ext] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+
+  return (
+    <button
+      type="button"
+      onClick={() => onAttachmentClick && onAttachmentClick(file)}
+      className={`relative flex flex-col overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] w-20 h-20 flex-shrink-0 ${hasPreview ? 'cursor-pointer' : 'cursor-default'}`}
+    >
+      {isImage && imgSrc ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imgSrc}
+            alt={file.display_name}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pt-3 pb-1">
+            <span className="text-[8px] text-white font-medium leading-tight truncate block">{file.display_name}</span>
+          </div>
+        </>
+      ) : (
+        <div className={`w-full h-full flex flex-col items-center justify-center gap-1 ${iconColor} px-1`}>
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/60 dark:bg-black/20 mb-0.5">
+            <span className="text-[11px] font-extrabold uppercase tracking-wide">{ext.slice(0, 4)}</span>
+          </div>
+          <span className="text-[8px] font-medium w-full text-center truncate px-1 opacity-80 leading-tight">{file.display_name}</span>
+        </div>
+      )}
+    </button>
+  );
+}
 
 interface MessageBubbleProps {
   message: Message;
@@ -41,53 +127,13 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
       {/* ── Attachments: rendered OUTSIDE and ABOVE the text bubble ── */}
       {isUser && message.attachments && message.attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2 justify-end max-w-[85%] md:max-w-2xl">
-          {message.attachments.map((file, idx) => {
-            const isImage = (file.mime_type || '').startsWith('image/');
-            const hasPreview = !!(file.local_url || file.uri);
-            const ext = file.display_name.split('.').pop()?.toLowerCase() || 'file';
-
-            const iconColors: Record<string, string> = {
-              pdf:  'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
-              doc:  'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-              docx: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-              txt:  'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
-              csv:  'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
-              md:   'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-              rtf:  'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
-              html: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
-            };
-            const iconColor = iconColors[ext] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
-
-            return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => onAttachmentClick && onAttachmentClick(file)}
-                className={`relative flex flex-col overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] w-20 h-20 flex-shrink-0 ${hasPreview ? 'cursor-pointer' : 'cursor-default'}`}
-              >
-                {isImage && file.local_url ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={file.local_url}
-                      alt={file.display_name}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pt-3 pb-1">
-                      <span className="text-[8px] text-white font-medium leading-tight truncate block">{file.display_name}</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className={`w-full h-full flex flex-col items-center justify-center gap-1 ${iconColor} px-1`}>
-                    <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/60 dark:bg-black/20 mb-0.5">
-                      <span className="text-[11px] font-extrabold uppercase tracking-wide">{ext.slice(0, 4)}</span>
-                    </div>
-                    <span className="text-[8px] font-medium w-full text-center truncate px-1 opacity-80 leading-tight">{file.display_name}</span>
-                  </div>
-                )}
-              </button>
-            );
-          })}
+          {message.attachments.map((file, idx) => (
+            <AttachmentThumbnail
+              key={idx}
+              file={file}
+              onAttachmentClick={onAttachmentClick}
+            />
+          ))}
         </div>
       )}
 

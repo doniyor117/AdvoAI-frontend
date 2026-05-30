@@ -74,14 +74,14 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {statCards.map((stat) => (
                     <Card key={stat.label} className="border-border/50 hover:border-primary/20 transition-colors">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <div className="flex flex-row items-center justify-between px-6 pt-6 pb-2">
                             <CardDescription className="text-sm font-medium">
                                 {stat.label}
                             </CardDescription>
-                            <div className={`p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 ${stat.color}`}>
-                                <stat.icon className="size-4" />
+                            <div className={`p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 ${stat.color} flex-shrink-0`}>
+                                <stat.icon className="size-4 shrink-0" />
                             </div>
-                        </CardHeader>
+                        </div>
                         <CardContent>
                             <div className="text-3xl font-bold text-foreground">
                                 {stat.value.toLocaleString()}

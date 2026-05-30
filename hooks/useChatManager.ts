@@ -16,7 +16,8 @@ export type FileAttachment = {
   mime_type: string;
   name?: string; // Optional during upload
   display_name: string;
-  local_url?: string;
+  s3_key?: string; // R2 storage key — used to fetch presigned URL when local_url is gone
+  local_url?: string; // Ephemeral blob URL, valid only while the page is open
   is_uploading?: boolean;
   error?: string;
   file?: File; // Store original file temporarily
@@ -161,7 +162,15 @@ export function useChatManager(chatId?: string) {
                   role: m.role,
                   text: m.content || m.text || '',
                   citations: m.citations,
-                  attachments: m.attachments,
+                  // Map attachments from backend (s3_key, display_name, mime_type)
+                  // Note: local_url is intentionally omitted — blob URLs are ephemeral
+                  attachments: m.attachments
+                    ? m.attachments.map((a: any) => ({
+                        display_name: a.display_name,
+                        mime_type: a.mime_type,
+                        s3_key: a.s3_key,
+                      }))
+                    : undefined,
                 }));
                 setMessages(history);
                 // Save to local storage for future use
@@ -192,9 +201,18 @@ export function useChatManager(chatId?: string) {
   }, [chatId, storageKey, isAuthenticated, isAuthLoading]);
 
   // Save to localStorage when messages change (client-side cache)
+  // Strip local_url (ephemeral blob URLs) before saving — they die when the page closes
   useEffect(() => {
     if (isHydrated && storageKey && messages.length > 0) {
-      localStorage.setItem(storageKey, JSON.stringify(messages));
+      const toStore = messages.map(msg => ({
+        ...msg,
+        attachments: msg.attachments?.map(a => ({
+          ...a,
+          local_url: undefined, // Don't persist blob URLs
+          file: undefined,      // Don't persist File objects
+        })),
+      }));
+      localStorage.setItem(storageKey, JSON.stringify(toStore));
     }
   }, [messages, isHydrated, storageKey]);
 
@@ -622,6 +640,7 @@ function getFileValidationError(file: File): string | null {
         mime_type: data.mime_type,
         name: data.name,
         display_name: data.display_name,
+        s3_key: data.s3_key, // Store R2 key for persistent preview
         is_uploading: false,
       } : a));
     } catch (err: any) {
