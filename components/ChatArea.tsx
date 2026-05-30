@@ -249,7 +249,7 @@ export function ChatArea({
 
   const onSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isLoading || !inputValue.trim() || attachments.some(a => a.is_uploading)) return;
+    if (isLoading || !inputValue.trim() || attachments.some(a => a.is_uploading) || attachments.some(a => a.error)) return;
     handleSendMessage(inputValue);
   };
 
@@ -316,6 +316,13 @@ export function ChatArea({
                     <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                     <span className="text-[9px] text-slate-400">Uploading…</span>
                   </div>
+                ) : file.error ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-red-50 dark:bg-red-900/20 px-1 border border-red-200 dark:border-red-900/50">
+                    <X className="w-5 h-5 text-red-500" />
+                    <span className="text-[9px] font-medium text-red-600 dark:text-red-400 w-full text-center truncate px-1" title={file.error}>
+                      Error
+                    </span>
+                  </div>
                 ) : file.mime_type?.startsWith('image/') && file.local_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -334,7 +341,7 @@ export function ChatArea({
                   </div>
                 )}
                 {/* Gradient label strip for images */}
-                {!file.is_uploading && file.mime_type?.startsWith('image/') && (
+                {!file.is_uploading && !file.error && file.mime_type?.startsWith('image/') && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1.5 pt-3 pb-1">
                     <span className="text-[9px] text-white font-medium truncate block">{file.display_name}</span>
                   </div>
@@ -407,8 +414,8 @@ export function ChatArea({
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              disabled={!inputValue.trim() || isLoading || inputValue.length > 4000}
-              className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${inputValue.trim() && !isLoading && inputValue.length <= 4000
+              disabled={!inputValue.trim() || isLoading || inputValue.length > 4000 || attachments.some(a => a.error)}
+              className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${inputValue.trim() && !isLoading && inputValue.length <= 4000 && !attachments.some(a => a.error)
                 ? 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:scale-[1.05]'
                 : 'bg-black/5 dark:bg-white/5 text-slate-400 dark:text-slate-600'
                 }`}
