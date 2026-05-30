@@ -11,6 +11,45 @@ import { ContractWizardView } from '@/components/ContractWizardView';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
 import { use } from 'react';
+import { usePresignedUrl } from '@/hooks/usePresignedUrl';
+import { FileAttachment } from '@/hooks/useChatManager';
+
+function FullscreenImageViewer({ attachment, onClose }: { attachment: FileAttachment, onClose: () => void }) {
+  const imgSrc = usePresignedUrl(attachment);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 md:p-8"
+      onClick={onClose}
+    >
+      <button 
+        className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-colors z-50"
+        onClick={onClose}
+      >
+        <X className="w-6 h-6" />
+      </button>
+      {imgSrc ? (
+        <motion.img 
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          src={imgSrc} 
+          alt={attachment.display_name}
+          className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+          onClick={e => e.stopPropagation()}
+        />
+      ) : (
+        <div className="flex flex-col items-center justify-center text-white/70">
+          <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4" />
+          <p className="text-sm font-medium">Loading image...</p>
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -108,29 +147,10 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
       <AnimatePresence>
         {activeAttachment && (activeAttachment.mime_type || '').startsWith('image/') && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md p-4 md:p-8"
-            onClick={() => setActiveAttachment(null)}
-          >
-            <button 
-              className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-md transition-colors"
-              onClick={() => setActiveAttachment(null)}
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <motion.img 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              src={activeAttachment.local_url || activeAttachment.uri} 
-              alt={activeAttachment.display_name}
-              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
-              onClick={e => e.stopPropagation()}
-            />
-          </motion.div>
+          <FullscreenImageViewer 
+            attachment={activeAttachment} 
+            onClose={() => setActiveAttachment(null)} 
+          />
         )}
       </AnimatePresence>
     </div>

@@ -7,37 +7,8 @@ import { FileText, ChevronRight, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quot
 import { motion } from 'motion/react';
 import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePresignedUrl } from '@/hooks/usePresignedUrl';
 import { authFetch } from '@/lib/authFetch';
-
-/**
- * Fetches a presigned R2 URL for an attachment that has an s3_key but no local_url.
- * Returns null while loading or if not applicable.
- */
-function usePresignedUrl(file: FileAttachment): string | null {
-  const [url, setUrl] = useState<string | null>(file.local_url || null);
-
-  useEffect(() => {
-    // If we already have a local blob URL, use it directly
-    if (file.local_url) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setUrl(file.local_url);
-      return;
-    }
-    // If there's an s3_key, fetch a presigned URL from the backend
-    if (file.s3_key) {
-      let cancelled = false;
-      authFetch(`/api/chat/file/${encodeURIComponent(file.s3_key)}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-          if (!cancelled && data?.url) setUrl(data.url);
-        })
-        .catch(() => {}); // Fail silently — file card still shows
-      return () => { cancelled = true; };
-    }
-  }, [file.local_url, file.s3_key]);
-
-  return url;
-}
 
 /** A single attachment card — shows image thumbnail (local or from R2) or file-type card */
 function AttachmentThumbnail({
