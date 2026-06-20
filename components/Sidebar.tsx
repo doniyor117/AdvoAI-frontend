@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MessageSquare, Plus, Scale, X, PanelLeftClose, PanelLeftOpen, Search, Settings, User, LogOut, CreditCard, FileText, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn, HelpCircle } from 'lucide-react';
+import { MessageSquare, Plus, Scale, X, PanelLeftClose, PanelLeftOpen, Search, Settings, User, LogOut, CreditCard, FileText, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn, HelpCircle, Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'motion/react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
@@ -106,9 +107,14 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isGuestSettingsOpen, setIsGuestSettingsOpen] = useState(false);
+  const [isGuestLangOpen, setIsGuestLangOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
+  const guestSettingsRef = useRef<HTMLDivElement>(null);
+  const guestLangRef = useRef<HTMLDivElement>(null);
   const { t, lang, setLang } = useLanguage();
+  const { theme, setTheme } = useTheme();
   const { user, isAuthenticated, isAdmin, logout, isLoading } = useAuth();
   const { settings } = usePublicSettings();
 
@@ -124,6 +130,11 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
     setIsProfileMenuOpen(false);
     setIsLangMenuOpen(false);
   }, isProfileMenuOpen);
+
+  useClickOutside(guestSettingsRef, () => {
+    setIsGuestSettingsOpen(false);
+    setIsGuestLangOpen(false);
+  }, isGuestSettingsOpen);
 
   const languages = [
     { code: 'en', label: 'English' },
@@ -511,14 +522,111 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
                       </button>
                     </>
                   ) : (
-                    /* Not logged in: Login/Signup button */
-                    <Link
-                      href="/login"
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary dark:text-[#E6EDF3] dark:bg-white/10 dark:hover:bg-white/20 rounded-full text-sm font-medium transition-all duration-300 shadow-sm shadow-inner hover:scale-[1.02] active:scale-95 border border-primary/10 dark:border-white/10"
-                    >
-                      <LogIn className="w-4 h-4" />
-                      Log In / Sign Up
-                    </Link>
+                    /* Not logged in: Settings + Login */
+                    <div className="space-y-2">
+                      {/* Guest settings popover */}
+                      <div className="relative" ref={guestSettingsRef}>
+                        <AnimatePresence>
+                          {isGuestSettingsOpen && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute bottom-full left-0 right-0 mb-2 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50"
+                            >
+                              <div className="p-3 space-y-3">
+                                {/* Language */}
+                                <div>
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
+                                    {t('settings.language')}
+                                  </p>
+                                  <div className="relative" ref={guestLangRef}>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setIsGuestLangOpen(!isGuestLangOpen); }}
+                                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300 rounded-lg text-sm transition-colors"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Globe className="w-4 h-4 text-slate-400" />
+                                        <span>{languages.find(l => l.code === lang)?.label}</span>
+                                      </div>
+                                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isGuestLangOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    <AnimatePresence>
+                                      {isGuestLangOpen && (
+                                        <motion.div
+                                          initial={{ opacity: 0, y: -5 }}
+                                          animate={{ opacity: 1, y: 0 }}
+                                          exit={{ opacity: 0, y: -5 }}
+                                          className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#0F1117] border border-slate-200 dark:border-slate-700 rounded-lg shadow-md overflow-hidden z-[60]"
+                                        >
+                                          {languages.map((l) => (
+                                            <button
+                                              key={l.code}
+                                              onClick={(e) => { e.stopPropagation(); setLang(l.code as Language); setIsGuestLangOpen(false); }}
+                                              className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 text-sm text-slate-700 dark:text-slate-300 transition-colors"
+                                            >
+                                              <span>{l.label}</span>
+                                              {lang === l.code && <Check className="w-4 h-4 text-primary" />}
+                                            </button>
+                                          ))}
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </div>
+                                </div>
+
+                                <div className="h-px bg-border mx-1" />
+
+                                {/* Theme */}
+                                <div>
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
+                                    {t('settings.theme')}
+                                  </p>
+                                  <div className="grid grid-cols-3 gap-1.5">
+                                    {([
+                                      { key: 'light', icon: Sun, label: 'Light' },
+                                      { key: 'dark', icon: Moon, label: 'Dark' },
+                                      { key: 'system', icon: Monitor, label: 'System' },
+                                    ] as const).map(({ key, icon: Icon, label }) => (
+                                      <button
+                                        key={key}
+                                        onClick={() => setTheme(key)}
+                                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg border transition-all text-xs ${
+                                          theme === key
+                                            ? 'border-primary bg-primary/5 text-primary dark:border-[#1F6FEB] dark:bg-[#1F6FEB]/10 dark:text-[#1F6FEB]'
+                                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-500 dark:text-slate-400'
+                                        }`}
+                                      >
+                                        <Icon className="w-4 h-4 mb-1" />
+                                        {label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        <button
+                          onClick={() => setIsGuestSettingsOpen(!isGuestSettingsOpen)}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 rounded-lg text-sm transition-colors"
+                        >
+                          <Settings className="w-4 h-4" />
+                          <span>{t('sidebar.settings')}</span>
+                        </button>
+                      </div>
+
+                      {/* Login button */}
+                      <Link
+                        href="/login"
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary dark:text-[#E6EDF3] dark:bg-white/10 dark:hover:bg-white/20 rounded-full text-sm font-medium transition-all duration-300 shadow-sm shadow-inner hover:scale-[1.02] active:scale-95 border border-primary/10 dark:border-white/10"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        Log In / Sign Up
+                      </Link>
+                    </div>
                   )}
                 </div>
               </div>

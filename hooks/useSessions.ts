@@ -181,7 +181,7 @@ export function useSessions() {
     if (!isAuthenticated) {
       const updated = sessions.filter(s => s.id !== id);
       saveGuestSessions(updated);
-      localStorage.removeItem(`yurika_chat_messages_${id}`);
+      localStorage.removeItem(`advoai_chat_messages_${id}`);
       return;
     }
 

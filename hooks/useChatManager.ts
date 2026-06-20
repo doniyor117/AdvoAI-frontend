@@ -108,15 +108,6 @@ export function useChatManager(chatId?: string) {
   const currentSession = sessions.find(s => s.id === chatId);
   const chatTitle = currentSession?.title || '';
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (isFirstRender.current) {
-        isFirstRender.current = false;
-        return;
-      }
-    }
-  }, [isSidebarOpen]);
-
   // Load messages from localStorage on mount or when chatId changes
   useEffect(() => {
     if (isAuthLoading) return;
@@ -148,12 +139,17 @@ export function useChatManager(chatId?: string) {
 
       if (parsed && Array.isArray(parsed) && parsed.length > 0) {
         setMessages(parsed);
+        setIsHydrated(true); // Show cached content immediately without waiting for backend
       } else {
         setMessages([]);
       }
 
       // 2. Always fetch history from backend if authenticated to sync cross-device
-      if (isAuthenticated) {
+      // Skip if we have a pending question for this chat, as the backend won't have the messages yet
+      const hasPendingQuestion = typeof window !== 'undefined' &&
+        (localStorage.getItem('advoai_pending_chat_id') === chatId || pendingProcessed.current);
+
+      if (isAuthenticated && !hasPendingQuestion) {
         try {
           const res = await authFetch(`/api/sessions/${chatId}/messages`);
           if (res.ok) {
@@ -175,8 +171,8 @@ export function useChatManager(chatId?: string) {
               setMessages(history);
               // Save to local storage for future use
               localStorage.setItem(storageKey!, JSON.stringify(history));
-            } else {
-              // If backend has no messages but cache did, backend is the source of truth
+            } else if (!pendingProcessed.current) {
+              // Backend is source of truth — clear local cache, but only when no send is in flight
               setMessages([]);
               localStorage.removeItem(storageKey!);
             }
@@ -195,11 +191,13 @@ export function useChatManager(chatId?: string) {
         if (savedSessionId) setSessionId(savedSessionId);
       }
       
+      const isPending = typeof window !== 'undefined' &&
+        (localStorage.getItem('advoai_pending_chat_id') === chatId || pendingProcessed.current);
       setIsHydrated(true);
-      setIsLoading(false);
+      if (!isPending) setIsLoading(false);
       isNavigatingRef.current = false;
     }
-    
+
     loadMessages();
   }, [chatId, storageKey, isAuthenticated, isAuthLoading]);
 
@@ -351,8 +349,8 @@ export function useChatManager(chatId?: string) {
       setInputValue('');
       setAttachments([]);
 
-      // Store pending question for after redirect
-      localStorage.setItem('advoai_pending_question', trimmed);
+      // Store pending question for after redirect (use finalPrompt so quoted text is preserved)
+      localStorage.setItem('advoai_pending_question', finalPrompt);
       if (currentAttachments.length > 0) {
         // Can't reliably pass files through localstorage across redirects because of Object URLs and Blobs.
         // We'll stringify the finalized attachments (which have URIs)
@@ -441,7 +439,7 @@ export function useChatManager(chatId?: string) {
       try { pendingAttachments = JSON.parse(pendingAttachmentsRaw); } catch(e) {}
     }
 
-    if (pendingQuestion && pendingChatId === chatId) {
+    if (pendingQuestion !== null && pendingChatId === chatId) {
       pendingProcessed.current = true;
       localStorage.removeItem('advoai_pending_question');
       localStorage.removeItem('advoai_pending_chat_id');
