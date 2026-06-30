@@ -62,8 +62,8 @@ export async function authFetch(
     }
 
     const headers = new Headers(options.headers || {});
-    
-    // Add Authorization header for iOS/Safari where 3rd-party cookies are blocked
+
+    // Bearer token is the PRIMARY auth mechanism (backend checks it before cookies).
     if (typeof window !== 'undefined') {
         const token = localStorage.getItem('advoai_token');
         if (token) {
@@ -71,9 +71,16 @@ export async function authFetch(
         }
     }
 
+    // IMPORTANT: do NOT use credentials: 'include'.
+    // The backend is cross-origin (Hugging Face), and HF's edge proxy answers
+    // CORS preflight (OPTIONS) WITHOUT `Access-Control-Allow-Credentials: true`.
+    // A credentialed request therefore fails the preflight and never reaches the
+    // app ("Failed to fetch"). By omitting credentials we send a normal CORS
+    // request that the proxy's preflight allows, and authenticate purely via the
+    // Bearer token above. The HttpOnly cookie is not usable cross-origin anyway.
     return fetch(url, {
         ...options,
         headers,
-        credentials: 'include', // keep cookie fallback
+        credentials: 'omit',
     });
 }
