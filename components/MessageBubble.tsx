@@ -228,7 +228,9 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
               >
                 <div className="flex items-center gap-1.5 truncate">
                   <FileText className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="truncate">{t('chat.cite')}: {cit.title.split(',')[1]?.trim() || cit.title}</span>
+                  {/* Was `cit.title.split(',')[1]` — blindly taking the text after the first comma
+                      of a Lex.uz title, which is often a date fragment or nothing at all. */}
+                  <span className="truncate">{t('chat.cite')}: {cit.title}</span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 ml-0.5 opacity-70 flex-shrink-0" />
               </button>
