@@ -12,7 +12,9 @@ export type Citation = {
 };
 
 export type FileAttachment = {
-  uri?: string; // Optional during upload
+  document_id?: string; // Durable server-side id — the only ref that survives across turns
+  kind?: 'text' | 'media';
+  uri?: string; // Legacy Gemini file URI (no longer produced by the backend)
   mime_type: string;
   name?: string; // Optional during upload
   display_name: string;
@@ -22,6 +24,26 @@ export type FileAttachment = {
   error?: string;
   file?: File; // Store original file temporarily
 };
+
+/** True once the file is safely on the server and can be referenced in a message. */
+export function isAttachmentReady(a: FileAttachment): boolean {
+  return !a.error && !a.is_uploading && Boolean(a.document_id || a.uri);
+}
+
+/**
+ * Strips values that cannot survive serialization: blob URLs die with the page, and a
+ * File serializes to `{}`. Persisting them left broken previews after a reload.
+ */
+function serializeMessages(msgs: Message[]): Message[] {
+  return msgs.map(msg => ({
+    ...msg,
+    attachments: msg.attachments?.map(a => ({
+      ...a,
+      local_url: undefined,
+      file: undefined,
+    })),
+  }));
+}
 
 export type Message = {
   id: string;
@@ -71,7 +93,10 @@ export function useChatManager(chatId?: string) {
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
-  const [activeFeature, setActiveFeature] = useState<'chat' | 'agreement_summary' | 'compare_contracts' | 'create_contract'>('chat');
+  const [activeFeature, setActiveFeature] = useState<'chat' | 'compare_contracts' | 'create_contract'>('chat');
+  // Why a send attempt was ignored. Without this the send button silently did nothing
+  // during an upload, which reads as "the app is broken".
+  const [sendBlockedReason, setSendBlockedReason] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -81,6 +106,13 @@ export function useChatManager(chatId?: string) {
   });
   const isFirstRender = useRef(true);
   const pendingProcessed = useRef(false);
+  // Guards against a slow history fetch landing after newer state. `loadMessages` re-runs
+  // whenever auth resolves, so an in-flight response could clobber a just-appended reply.
+  const loadGeneration = useRef(0);
+  const inFlightRef = useRef<AbortController | null>(null);
+
+  // Abort any in-flight chat request when the chat changes or the hook unmounts.
+  useEffect(() => () => inFlightRef.current?.abort(), [chatId]);
 
   useEffect(() => {
     if (cachedSidebarState === null && typeof window !== 'undefined') {
@@ -111,6 +143,9 @@ export function useChatManager(chatId?: string) {
   // Load messages from localStorage on mount or when chatId changes
   useEffect(() => {
     if (isAuthLoading) return;
+
+    loadGeneration.current += 1;
+    const generation = loadGeneration.current;
 
     async function loadMessages() {
       if (!chatId) {
@@ -152,27 +187,39 @@ export function useChatManager(chatId?: string) {
       if (isAuthenticated && !hasPendingQuestion) {
         try {
           const res = await authFetch(`/api/sessions/${chatId}/messages`);
-          if (res.ok) {
+          if (res.ok && generation === loadGeneration.current) {
             const data = await safeJson(res);
             if (data.messages && data.messages.length > 0) {
               const history = data.messages.map((m: any) => ({
                 id: m.id || generateId(),
                 role: m.role,
                 text: m.content || m.text || '',
-                citations: m.citations,
+                // The backend persists citations in `sources`, never `citations`, so
+                // reading only m.citations lost them on every reload. Compare turns
+                // store an OBJECT in sources ({kind:"comparison",...}) — mapping that
+                // into citations would crash citations.map(), hence the array guard.
+                citations: Array.isArray(m.sources) ? m.sources : m.citations,
                 attachments: m.attachments
                   ? m.attachments.map((a: any) => ({
+                      document_id: a.document_id,
                       display_name: a.display_name,
                       mime_type: a.mime_type,
                       s3_key: a.s3_key,
                     }))
                   : undefined,
               }));
+              if (generation !== loadGeneration.current) return;
               setMessages(history);
               // Save to local storage for future use
-              localStorage.setItem(storageKey!, JSON.stringify(history));
-            } else if (!pendingProcessed.current) {
-              // Backend is source of truth — clear local cache, but only when no send is in flight
+              try {
+                localStorage.setItem(storageKey!, JSON.stringify(history));
+              } catch {
+                console.warn('[chat] localStorage quota exceeded; skipping history cache');
+              }
+            } else if (!pendingProcessed.current && !parsed?.length) {
+              // Backend is source of truth — but only clear the cache when we had nothing
+              // locally either. Otherwise a first turn that failed before the server
+              // persisted it would wipe the user's visible message AND its attachment.
               setMessages([]);
               localStorage.removeItem(storageKey!);
             }
@@ -205,15 +252,26 @@ export function useChatManager(chatId?: string) {
   // Strip local_url (ephemeral blob URLs) before saving — they die when the page closes
   useEffect(() => {
     if (isHydrated && storageKey && messages.length > 0) {
-      const toStore = messages.map(msg => ({
-        ...msg,
-        attachments: msg.attachments?.map(a => ({
-          ...a,
-          local_url: undefined, // Don't persist blob URLs
-          file: undefined,      // Don't persist File objects
-        })),
-      }));
-      localStorage.setItem(storageKey, JSON.stringify(toStore));
+      // Citations carry the full text of entire legal codes, so this can exceed the
+      // ~5MB localStorage quota on a long chat. An unguarded setItem inside an effect
+      // throws mid-render; drop the citation bodies first, then give up gracefully.
+      // Error bubbles are client-side fakes; caching them makes a transient failure look
+      // like a permanent part of the conversation after a reload.
+      const persistable = messages.filter(m => !m.isError);
+      if (persistable.length === 0) return;
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(serializeMessages(persistable)));
+      } catch {
+        try {
+          const slim = serializeMessages(persistable).map(m => ({
+            ...m,
+            citations: m.citations?.map(c => ({ ...c, text: '' })),
+          }));
+          localStorage.setItem(storageKey, JSON.stringify(slim));
+        } catch {
+          console.warn('[chat] localStorage quota exceeded; skipping cache write');
+        }
+      }
     }
   }, [messages, isHydrated, storageKey]);
 
@@ -264,12 +322,26 @@ export function useChatManager(chatId?: string) {
     };
 
     if (filesToAttach.length > 0) {
-      body.attachments = filesToAttach.filter(f => f.uri).map(f => ({
-        uri: f.uri || '',
+      const ready = filesToAttach.filter(isAttachmentReady);
+
+      // Previously this silently filtered to `f.uri`, so a file that failed to upload
+      // still rendered in the user's bubble while never being sent — and the assistant
+      // then asked for a document the user could see on screen. Fail loudly instead.
+      if (ready.length !== filesToAttach.length) {
+        const dropped = filesToAttach.filter(f => !isAttachmentReady(f));
+        throw new Error(
+          `${dropped.map(f => `'${f.display_name}'`).join(', ')} could not be attached. ` +
+          `Please remove and re-attach ${dropped.length > 1 ? 'them' : 'it'}.`
+        );
+      }
+
+      body.attachments = ready.map(f => ({
+        document_id: f.document_id,
+        uri: f.uri,
         mime_type: f.mime_type || '',
-        name: f.name || '',
+        name: f.name,
         display_name: f.display_name || '',
-        s3_key: f.s3_key || '',
+        s3_key: f.s3_key || null,
       }));
     }
 
@@ -277,10 +349,17 @@ export function useChatManager(chatId?: string) {
       body.session_id = currentSessionId;
     }
 
+    // Abort in-flight sends when the user navigates away, so the response cannot
+    // land in an unmounted component (and the browser stops holding the connection).
+    inFlightRef.current?.abort();
+    const controller = new AbortController();
+    inFlightRef.current = controller;
+
     const res = await authFetch('/api/chat/', {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
 
     if (!res.ok) {
@@ -310,11 +389,18 @@ export function useChatManager(chatId?: string) {
   const handleSendMessage = useCallback((text: string) => {
     const trimmed = text.trim();
     if ((!trimmed && attachments.length === 0) || isNavigatingRef.current || isLoading || isAuthLoading) return;
-    
-    // Check if we are still uploading
+
+    // Both guards live here so every entry point is covered — the suggested-prompt chips
+    // call this directly and used to bypass the checks in ChatArea's onSubmit.
     if (attachments.some(a => a.is_uploading)) {
+      setSendBlockedReason('Please wait for the file upload to finish.');
       return;
     }
+    if (attachments.some(a => a.error)) {
+      setSendBlockedReason('Remove the failed attachment before sending.');
+      return;
+    }
+    setSendBlockedReason(null);
 
     const currentAttachments = [...attachments];
 
@@ -373,10 +459,12 @@ export function useChatManager(chatId?: string) {
           return;
         }
 
-        // Save the user message under the new chat ID
+        // Save the user message under the new chat ID.
+        // Must go through serializeMessages — writing newUserMsg raw persisted dead blob
+        // URLs and an empty `"file": {}`, leaving a permanently broken preview.
         localStorage.setItem(
           `advoai_chat_messages_${currentChatId}`,
-          JSON.stringify([newUserMsg]),
+          JSON.stringify(serializeMessages([newUserMsg])),
         );
         localStorage.setItem('advoai_pending_chat_id', currentChatId);
 
@@ -413,6 +501,8 @@ export function useChatManager(chatId?: string) {
         setMessages(prev => [...prev, assistantMsg]);
       })
       .catch(err => {
+        // Aborted by navigation, not a real failure — see the note below.
+        if (err?.name === 'AbortError') return;
         const errorMsg: Message = {
           id: generateId(),
           role: 'assistant',
@@ -439,11 +529,24 @@ export function useChatManager(chatId?: string) {
       try { pendingAttachments = JSON.parse(pendingAttachmentsRaw); } catch(e) {}
     }
 
+    // Stale pending keys from an abandoned navigation would otherwise sit in
+    // localStorage and fire against whatever chat is opened next.
+    if (pendingQuestion !== null && pendingChatId && pendingChatId !== chatId) {
+      const known = sessions.some(s => s.id === pendingChatId);
+      if (!known) {
+        localStorage.removeItem('advoai_pending_question');
+        localStorage.removeItem('advoai_pending_chat_id');
+        localStorage.removeItem('advoai_pending_attachments');
+      }
+    }
+
     if (pendingQuestion !== null && pendingChatId === chatId) {
       pendingProcessed.current = true;
-      localStorage.removeItem('advoai_pending_question');
-      localStorage.removeItem('advoai_pending_chat_id');
-      localStorage.removeItem('advoai_pending_attachments');
+      const clearPendingKeys = () => {
+        localStorage.removeItem('advoai_pending_question');
+        localStorage.removeItem('advoai_pending_chat_id');
+        localStorage.removeItem('advoai_pending_attachments');
+      };
 
       // For auth users, the chatId is the server session UUID
       const backendSessionId = isAuthenticated ? chatId : null;
@@ -465,8 +568,12 @@ export function useChatManager(chatId?: string) {
             citations: result.sources || [],
           };
           setMessages(prev => [...prev, assistantMsg]);
+          clearPendingKeys();
         })
         .catch(err => {
+          // We abort in-flight sends on navigation; that is not something to show
+          // the user, and it would otherwise land in the chat they just opened.
+          if (err?.name === 'AbortError') return;
           const errorMsg: Message = {
             id: generateId(),
             role: 'assistant',
@@ -476,10 +583,15 @@ export function useChatManager(chatId?: string) {
           setMessages(prev => [...prev, errorMsg]);
         })
         .finally(() => {
+          // Cleared only after the call settles, never before it. The document refs
+          // themselves survive in the message cache (serializeMessages keeps
+          // document_id), so a failed turn stays retryable without risking the
+          // auto-resend-on-reload that keeping these keys would cause.
+          clearPendingKeys();
           setIsLoading(false);
         });
     }
-  }, [isHydrated, chatId, isAuthenticated, sendToBackend]);
+  }, [isHydrated, chatId, isAuthenticated, sendToBackend, sessions]);
 
   const handleCitationClick = useCallback((citation: Citation) => {
     setActiveCitation(citation);
@@ -639,9 +751,13 @@ function getFileValidationError(file: File): string | null {
       
       setAttachments(prev => prev.map(a => a.name === tempId ? {
         ...a,
-        uri: data.uri,
-        mime_type: data.mime_type,
-        name: data.name,
+        document_id: data.document_id,
+        kind: data.kind,
+        uri: data.uri,          // null for text documents — they never touch the Files API
+        // Keep the ORIGINAL mime type so the chip still reads "DOCX" rather than the
+        // converted markdown type the server used internally.
+        mime_type: data.mime_type || a.mime_type,
+        name: data.name || tempId,
         display_name: data.display_name,
         s3_key: data.s3_key, // Store R2 key for persistent preview
         is_uploading: false,
@@ -662,6 +778,8 @@ function getFileValidationError(file: File): string | null {
       if (removed && removed.local_url) {
         URL.revokeObjectURL(removed.local_url);
       }
+      // Removing the offending file should clear the warning it caused.
+      if (!copy.some(a => a.error || a.is_uploading)) setSendBlockedReason(null);
       return copy;
     });
   }, []);
@@ -686,6 +804,7 @@ function getFileValidationError(file: File): string | null {
     handleCitationClick,
     closeInsightPanel,
     isHydrated,
+    sendBlockedReason,
     activeFeature,
     setActiveFeature,
     chatTitle,

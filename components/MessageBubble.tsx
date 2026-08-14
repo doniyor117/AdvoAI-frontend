@@ -3,7 +3,7 @@
 import React, { useState, memo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, ChevronRight, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote } from 'lucide-react';
+import { FileText, ChevronRight, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote, AlertCircle, Download } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -11,6 +11,47 @@ import { usePresignedUrl } from '@/hooks/usePresignedUrl';
 import { authFetch } from '@/lib/authFetch';
 
 /** A single attachment card — shows image thumbnail (local or from R2) or file-type card */
+/**
+ * A document AdvoAI produced, offered as a download.
+ * Uses the same presigned-URL endpoint that powers attachment previews.
+ */
+function GeneratedFileCard({ file }: { file: FileAttachment }) {
+  const url = usePresignedUrl(file);
+  const ext = file.display_name.split('.').pop()?.toUpperCase() || 'DOC';
+
+  return (
+    <div className="flex items-center gap-3 w-full max-w-md rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#141414] px-4 py-3 shadow-sm">
+      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex-shrink-0">
+        <span className="text-[10px] font-extrabold tracking-wide text-blue-600 dark:text-blue-400">
+          {ext.slice(0, 4)}
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+          {file.display_name}
+        </p>
+        <p className="text-xs text-slate-400">
+          {ext === 'DOCX' ? 'Word document' : ext}
+        </p>
+      </div>
+      {url ? (
+        <a
+          href={url}
+          download={file.display_name}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex-shrink-0"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Download
+        </a>
+      ) : (
+        <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin flex-shrink-0" />
+      )}
+    </div>
+  );
+}
+
 function AttachmentThumbnail({
   file,
   onAttachmentClick,
@@ -34,6 +75,34 @@ function AttachmentThumbnail({
     html: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
   };
   const iconColor = iconColors[ext] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+
+  // A failed or still-uploading attachment used to render exactly like a healthy one,
+  // so the chat showed a document the model had never received.
+  if (file.error) {
+    return (
+      <div
+        title={file.error}
+        className="relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-900/20 w-20 h-20 flex-shrink-0 px-1"
+      >
+        <AlertCircle className="w-5 h-5 text-red-500" />
+        <span className="text-[8px] font-medium text-red-600 dark:text-red-400 w-full text-center leading-tight line-clamp-2 px-0.5">
+          Not sent
+        </span>
+        <span className="text-[7px] text-red-500/80 w-full text-center truncate px-0.5">
+          {file.display_name}
+        </span>
+      </div>
+    );
+  }
+
+  if (file.is_uploading) {
+    return (
+      <div className="relative flex flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-[#1a1a1a] w-20 h-20 flex-shrink-0">
+        <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        <span className="text-[8px] text-slate-400">Uploading…</span>
+      </div>
+    );
+  }
 
   return (
     <button
@@ -102,6 +171,9 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
       className={`flex flex-col w-full py-4 md:py-6 scroll-mt-24 md:scroll-mt-28 ${isUser ? 'items-end' : 'items-start'}`}
     >
       {/* ── Attachments: rendered OUTSIDE and ABOVE the text bubble ── */}
+      {/* User attachments are thumbnails; assistant attachments are generated
+          documents, so they get a download card instead. This block used to be
+          gated on `isUser`, which made returning a file to the user impossible. */}
       {isUser && message.attachments && message.attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2 justify-end max-w-[85%] md:max-w-2xl">
           {message.attachments.map((file, idx) => (
@@ -114,10 +186,21 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
         </div>
       )}
 
+      {!isUser && message.attachments && message.attachments.length > 0 && (
+        <div className="flex flex-col gap-2 mb-3 w-full px-6 md:px-8">
+          {message.attachments.map((file, idx) => (
+            <GeneratedFileCard key={idx} file={file} />
+          ))}
+        </div>
+      )}
+
       {/* ── Text bubble ── */}
       <div className={`${isUser
           ? 'w-fit max-w-[85%] md:max-w-2xl bg-secondary text-secondary-foreground rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm'
-          : 'w-full bg-transparent py-4 px-6 md:px-8 md:py-8'
+          : message.isError
+            // isError was set but never read, so failures looked identical to answers.
+            ? 'w-full rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/70 dark:bg-red-900/15 py-4 px-6 md:px-8 md:py-6'
+            : 'w-full bg-transparent py-4 px-6 md:px-8 md:py-8'
         }`}>
         <div className={`prose max-w-none break-words ${isUser ? 'prose-sm md:prose-base prose-slate dark:prose-invert prose-p:my-0 prose-headings:my-0 font-sans font-medium text-slate-700 dark:text-slate-200' : 'prose-slate dark:prose-invert font-serif text-base md:text-lg leading-[1.6] md:leading-[1.7] prose-p:mb-6 prose-ul:mb-6 prose-ol:mb-6'}`}>
           <ReactMarkdown 

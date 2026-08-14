@@ -5,7 +5,6 @@ import { useChatManager } from '@/hooks/useChatManager';
 import { Sidebar } from '@/components/Sidebar';
 import { ChatArea } from '@/components/ChatArea';
 import { InsightPanel } from '@/components/InsightPanel';
-import { AgreementSummary } from '@/components/AgreementSummary';
 import { CompareContractsView } from '@/components/CompareContractsView';
 import { ContractWizardView } from '@/components/ContractWizardView';
 import { motion, AnimatePresence } from 'motion/react';
@@ -69,6 +68,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     handleAttachmentClick,
     closeInsightPanel,
     isHydrated,
+    sendBlockedReason,
     activeFeature,
     setActiveFeature,
     chatTitle,
@@ -88,34 +88,22 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           setIsSidebarOpen(false);
           setActiveFeature('chat');
         }} 
-        onAgreementSummaryClick={() => setActiveFeature('agreement_summary')}
         onCompareContractsClick={() => setActiveFeature('compare_contracts')}
         onCreateContractClick={() => setActiveFeature('create_contract')}
         onSessionClick={() => setActiveFeature('chat')}
       />
       
-      {activeFeature === 'agreement_summary' ? (
-        <AgreementSummary 
-          isSidebarOpen={isSidebarOpen}
-          setIsSidebarOpen={setIsSidebarOpen}
-          onBack={() => setActiveFeature('chat')}
-          uploadFile={uploadFile}
-          setInputValue={setInputValue}
-        />
-      ) : activeFeature === 'compare_contracts' ? (
+      {activeFeature === 'compare_contracts' ? (
         <CompareContractsView 
           isSidebarOpen={isSidebarOpen}
           setIsSidebarOpen={setIsSidebarOpen}
           onBack={() => setActiveFeature('chat')}
-          uploadFile={uploadFile}
-          setInputValue={setInputValue}
         />
       ) : activeFeature === 'create_contract' ? (
         <ContractWizardView 
           isSidebarOpen={isSidebarOpen}
           setIsSidebarOpen={setIsSidebarOpen}
           onBack={() => setActiveFeature('chat')}
-          handleSendMessage={handleSendMessage}
         />
       ) : (
         <ChatArea 
@@ -135,6 +123,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           removeAttachment={removeAttachment}
           quotedText={quotedText}
           setQuotedText={setQuotedText}
+          sendBlockedReason={sendBlockedReason}
         />
       )}
 

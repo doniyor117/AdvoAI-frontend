@@ -112,7 +112,6 @@
       "search_past_sessions": "Search past sessions...",
       "recent_sessions": "Recent Sessions",
       "pinned_sessions": "Pinned",
-      "agreement_summary": "Agreement summary",
       "compare_agreements": "Compare agreements",
       "create_agreement": "Create agreement",
       "profile": "Profile",
@@ -168,13 +167,37 @@
       "lease": "Residential Lease",
       "lease_desc": "Standard rental agreement",
       "service_agreement": "Service Agreement",
-      "service_desc": "B2B service terms"
+      "service_desc": "B2B service terms",
+      "choose": "What would you like to create?",
+      "choose_desc": "Pick a template, answer a few questions, and get a ready-made Word document.",
+      "fill_details": "Fill in what you know. Anything you leave blank becomes a clearly marked placeholder.",
+      "generate": "Generate document",
+      "drafting": "Drafting…",
+      "ready": "Your document is ready",
+      "download": "Download",
+      "refine_in_chat": "Refine in chat",
+      "regenerate": "Regenerate",
+      "new_document": "New document"
     },
     "prompts": {
       "draft_custom_contract": "I want to draft a new custom contract. Please ask me questions to guide me through the drafting process.",
       "draft_template_contract": "I want to draft a new {templateId} contract. Please use the standard template as a base.",
-      "compare_contracts": "Compare these contracts. Identify discrepancies, missing clauses, and risks.",
-      "summarize_agreement": "Please summarize this agreement. Highlight key clauses, obligations, and potential risks."
+      "compare_contracts": "Compare these contracts. Identify discrepancies, missing clauses, and risks."
+    },
+    "compare": {
+      "title": "Compare contracts",
+      "heading": "Compare contracts",
+      "subheading": "Upload 2–4 contracts to see clause-by-clause differences, missing protections, and risks.",
+      "add_document": "Add document",
+      "action": "Analyze & compare",
+      "analyzing": "Analyzing…",
+      "wait_upload": "Waiting for uploads to finish…",
+      "need_more": "Add at least 2 documents.",
+      "results": "Comparison results",
+      "clause": "Clause",
+      "absent": "not present",
+      "continue_in_chat": "Continue in chat",
+      "new_comparison": "New comparison"
     }
   },
   "uz": {
@@ -290,7 +313,6 @@
       "search_past_sessions": "O'tgan seanslarni qidirish...",
       "recent_sessions": "So'nggi seanslar",
       "pinned_sessions": "Mahkamlangan",
-      "agreement_summary": "Shartnoma xulosasi",
       "compare_agreements": "Shartnomalarni taqqoslash",
       "create_agreement": "Shartnoma yaratish",
       "profile": "Profil",
@@ -346,13 +368,37 @@
       "lease": "Turar-joy ijarasi",
       "lease_desc": "Standart ijara shartnomasi",
       "service_agreement": "Xizmat ko'rsatish shartnomasi",
-      "service_desc": "B2B xizmat shartlari"
+      "service_desc": "B2B xizmat shartlari",
+      "choose": "Nima yaratmoqchisiz?",
+      "choose_desc": "Shablonni tanlang, bir nechta savolga javob bering va tayyor Word hujjatini oling.",
+      "fill_details": "Bilganingizni kiriting. Bo'sh qoldirilgan joylar aniq belgilangan o'rin egallovchiga aylanadi.",
+      "generate": "Hujjat yaratish",
+      "drafting": "Tayyorlanmoqda…",
+      "ready": "Hujjatingiz tayyor",
+      "download": "Yuklab olish",
+      "refine_in_chat": "Chatda tahrirlash",
+      "regenerate": "Qayta yaratish",
+      "new_document": "Yangi hujjat"
     },
     "prompts": {
       "draft_custom_contract": "Yangi maxsus shartnoma tuzmoqchiman. Iltimos, loyihani tuzish jarayonida menga yo'l-yo'riq ko'rsatish uchun savollar bering.",
       "draft_template_contract": "Yangi {templateId} shartnomasini tuzmoqchiman. Iltimos, asos sifatida standart shablondan foydalaning.",
-      "compare_contracts": "Ushbu shartnomalarni taqqoslang. Tafovutlar, yetishmayotgan bandlar va xavflarni aniqlang.",
-      "summarize_agreement": "Iltimos, ushbu kelishuvni xulosa qiling. Asosiy bandlar, majburiyatlar va potentsial xavflarni ajratib ko'rsating."
+      "compare_contracts": "Ushbu shartnomalarni taqqoslang. Tafovutlar, yetishmayotgan bandlar va xavflarni aniqlang."
+    },
+    "compare": {
+      "title": "Shartnomalarni taqqoslash",
+      "heading": "Shartnomalarni taqqoslash",
+      "subheading": "Bandlar bo'yicha farqlar, yetishmayotgan himoya shartlari va xavflarni ko'rish uchun 2–4 ta shartnoma yuklang.",
+      "add_document": "Hujjat qo'shish",
+      "action": "Tahlil qilish va taqqoslash",
+      "analyzing": "Tahlil qilinmoqda…",
+      "wait_upload": "Yuklash tugashini kuting…",
+      "need_more": "Kamida 2 ta hujjat qo'shing.",
+      "results": "Taqqoslash natijalari",
+      "clause": "Band",
+      "absent": "mavjud emas",
+      "continue_in_chat": "Chatda davom etish",
+      "new_comparison": "Yangi taqqoslash"
     }
   },
   "ru": {
@@ -468,7 +514,6 @@
       "search_past_sessions": "Поиск прошлых сеансов...",
       "recent_sessions": "Последние сеансы",
       "pinned_sessions": "Закреплённые",
-      "agreement_summary": "Резюме договора",
       "compare_agreements": "Сравнить договоры",
       "create_agreement": "Создать договор",
       "profile": "Профиль",
@@ -524,13 +569,37 @@
       "lease": "Аренда жилья",
       "lease_desc": "Стандартный договор аренды",
       "service_agreement": "Договор оказания услуг",
-      "service_desc": "Условия B2B услуг"
+      "service_desc": "Условия B2B услуг",
+      "choose": "Что вы хотите создать?",
+      "choose_desc": "Выберите шаблон, ответьте на несколько вопросов и получите готовый документ Word.",
+      "fill_details": "Заполните то, что знаете. Пустые поля станут явно обозначенными заполнителями.",
+      "generate": "Создать документ",
+      "drafting": "Создаём…",
+      "ready": "Ваш документ готов",
+      "download": "Скачать",
+      "refine_in_chat": "Уточнить в чате",
+      "regenerate": "Создать заново",
+      "new_document": "Новый документ"
     },
     "prompts": {
       "draft_custom_contract": "Я хочу составить новый индивидуальный договор. Пожалуйста, задавайте мне вопросы, чтобы провести через процесс составления.",
       "draft_template_contract": "Я хочу составить новый договор ({templateId}). Пожалуйста, используйте стандартный шаблон в качестве основы.",
-      "compare_contracts": "Сравните эти договоры. Выявите расхождения, недостающие пункты и риски.",
-      "summarize_agreement": "Пожалуйста, резюмируйте это соглашение. Выделите ключевые пункты, обязательства и возможные риски."
+      "compare_contracts": "Сравните эти договоры. Выявите расхождения, недостающие пункты и риски."
+    },
+    "compare": {
+      "title": "Сравнение договоров",
+      "heading": "Сравнение договоров",
+      "subheading": "Загрузите 2–4 договора, чтобы увидеть постатейные различия, недостающие защиты и риски.",
+      "add_document": "Добавить документ",
+      "action": "Анализировать и сравнить",
+      "analyzing": "Анализируем…",
+      "wait_upload": "Ожидание загрузки…",
+      "need_more": "Добавьте минимум 2 документа.",
+      "results": "Результаты сравнения",
+      "clause": "Пункт",
+      "absent": "отсутствует",
+      "continue_in_chat": "Продолжить в чате",
+      "new_comparison": "Новое сравнение"
     }
   }
 }

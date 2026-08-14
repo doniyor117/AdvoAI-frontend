@@ -32,6 +32,7 @@ interface ChatAreaProps {
   onAttachmentClick?: (attachment: FileAttachment) => void;
   quotedText?: string;
   setQuotedText?: (val: string) => void;
+  sendBlockedReason?: string | null;
 }
 
 
@@ -77,7 +78,8 @@ export function ChatArea({
   removeAttachment,
   onAttachmentClick,
   quotedText = '',
-  setQuotedText
+  setQuotedText,
+  sendBlockedReason = null
 }: ChatAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -249,7 +251,7 @@ export function ChatArea({
 
   const onSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isLoading || !inputValue.trim() || attachments.some(a => a.is_uploading) || attachments.some(a => a.error)) return;
+    if (isLoading || (!inputValue.trim() && attachments.length === 0)) return;
     handleSendMessage(inputValue);
   };
 
@@ -298,6 +300,14 @@ export function ChatArea({
           </div>
         )}
 
+        {sendBlockedReason && (
+          <div className="px-5 pt-3 -mb-1">
+            <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+              {sendBlockedReason}
+            </p>
+          </div>
+        )}
+
         {attachments.length > 0 && removeAttachment && (
           <div className="flex items-center gap-3 px-5 pt-4 pb-1 flex-wrap">
             {attachments.map((file, idx) => (
@@ -319,8 +329,8 @@ export function ChatArea({
                 ) : file.error ? (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-red-50 dark:bg-red-900/20 px-1 border border-red-200 dark:border-red-900/50">
                     <X className="w-5 h-5 text-red-500" />
-                    <span className="text-[9px] font-medium text-red-600 dark:text-red-400 w-full text-center truncate px-1" title={file.error}>
-                      Error
+                    <span className="text-[8px] leading-tight font-medium text-red-600 dark:text-red-400 w-full text-center px-0.5 line-clamp-3" title={file.error}>
+                      {file.error || 'Error'}
                     </span>
                   </div>
                 ) : file.mime_type?.startsWith('image/') && file.local_url ? (
@@ -414,8 +424,8 @@ export function ChatArea({
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              disabled={!inputValue.trim() || isLoading || inputValue.length > 4000 || attachments.some(a => a.error)}
-              className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${inputValue.trim() && !isLoading && inputValue.length <= 4000 && !attachments.some(a => a.error)
+              disabled={(!inputValue.trim() && attachments.length === 0) || isLoading || inputValue.length > 4000 || attachments.some(a => a.error) || attachments.some(a => a.is_uploading)}
+              className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-95 ${(inputValue.trim() || attachments.length > 0) && !isLoading && inputValue.length <= 4000 && !attachments.some(a => a.error) && !attachments.some(a => a.is_uploading)
                 ? 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:scale-[1.05]'
                 : 'bg-black/5 dark:bg-white/5 text-slate-400 dark:text-slate-600'
                 }`}

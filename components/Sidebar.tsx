@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MessageSquare, Plus, Scale, X, PanelLeftClose, PanelLeftOpen, Search, Settings, User, LogOut, CreditCard, FileText, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn, HelpCircle, Sun, Moon, Monitor } from 'lucide-react';
+import { MessageSquare, Plus, Scale, X, PanelLeftClose, PanelLeftOpen, Search, Settings, User, LogOut, CreditCard, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn, HelpCircle, Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'motion/react';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -19,7 +19,6 @@ interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   onNewConsultation: () => void;
-  onAgreementSummaryClick?: () => void;
   onCompareContractsClick?: () => void;
   onCreateContractClick?: () => void;
   onSessionClick?: () => void;
@@ -101,7 +100,7 @@ function SessionMenu({ onDelete, onRename, onPin, isPinned }: { onDelete: (e: Re
   );
 }
 
-export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSummaryClick, onCompareContractsClick, onCreateContractClick, onSessionClick }: SidebarProps) {
+export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onCompareContractsClick, onCreateContractClick, onSessionClick }: SidebarProps) {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -293,16 +292,6 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onAgreementSumma
           </div>
 
           <div className={`px-3 pb-2 mt-4 space-y-1 min-w-[256px] transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'md:opacity-0 pointer-events-none'}`}>
-            <button
-              onClick={() => {
-                if (onAgreementSummaryClick) onAgreementSummaryClick();
-                if (window.innerWidth < 768) setIsOpen(false);
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 rounded-lg text-sm text-left transition-colors active:scale-95"
-            >
-              <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-              <span className="truncate font-medium">{t('sidebar.agreement_summary')}</span>
-            </button>
             <button
               onClick={() => {
                 if (onCompareContractsClick) onCompareContractsClick();
