@@ -21,6 +21,17 @@ import type { Message, FileAttachment } from '@/hooks/useChatManager';
 const MAX_IMPORT_MESSAGES = 200;
 const IMPORT_TIMEOUT_MS = 15000;
 
+// `app/page.tsx` guards its call to `syncGuestChatOnLogin()` with a `useRef` so it
+// fires at most once per component mount — but the home route REMOUNTS on every
+// navigation to '/', which resets that ref. Without a guard that survives across
+// mounts, landing on '/' repeatedly after login (e.g. clicking "New Chat") walked
+// through the accumulated guest-session backlog one entry at a time, silently
+// importing each leftover local session (often old single-message test chats) as
+// its own new server session on every visit. This flag makes the decision once per
+// browser instead. `AuthContext.logout()` clears it so a different user signing in
+// on the same browser still gets one migration attempt.
+export const GUEST_CHAT_MIGRATION_ATTEMPTED_KEY = 'advoai_guest_chat_migration_attempted';
+
 type ImportAttachment = {
   document_id: string;
   display_name?: string;
@@ -111,6 +122,9 @@ function clearMigratedGuestChat(sessionId: string, remainingGuestSessions: ChatS
  */
 export async function syncGuestChatOnLogin(): Promise<string> {
   if (typeof window === 'undefined') return '/';
+
+  if (localStorage.getItem(GUEST_CHAT_MIGRATION_ATTEMPTED_KEY) === '1') return '/';
+  localStorage.setItem(GUEST_CHAT_MIGRATION_ATTEMPTED_KEY, '1');
 
   const guestSessions = loadGuestSessions();
   if (guestSessions.length === 0) return '/';

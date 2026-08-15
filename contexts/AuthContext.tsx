@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { authFetch, safeJson } from '@/lib/authFetch';
+import { GUEST_CHAT_MIGRATION_ATTEMPTED_KEY } from '@/lib/migrateGuestChat';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -193,6 +194,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       clearToken();
       setUser(null);
+      // A different user signing in on this same browser should still get one
+      // guest-chat migration attempt of their own.
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(GUEST_CHAT_MIGRATION_ATTEMPTED_KEY);
+      }
     }
   }
 
