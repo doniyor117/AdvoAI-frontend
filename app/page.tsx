@@ -51,6 +51,7 @@ function AppContent() {
     setInputValue,
     isInsightOpen,
     activeCitation,
+    activeMessageCitations,
     activeAttachment,
     setActiveAttachment,
     isLoading,
@@ -151,9 +152,10 @@ function AppContent() {
         />
       )}
 
-      <InsightPanel 
+      <InsightPanel
         isOpen={isInsightOpen}
         activeCitation={activeCitation}
+        relatedCitations={activeMessageCitations}
         activeAttachment={activeAttachment}
         onClose={closeInsightPanel}
       />

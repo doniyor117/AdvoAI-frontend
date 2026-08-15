@@ -142,7 +142,7 @@ function AttachmentThumbnail({
 
 interface MessageBubbleProps {
   message: Message;
-  onCitationClick: (citation: Citation) => void;
+  onCitationClick: (citation: Citation, messageCitations: Citation[]) => void;
   onAttachmentClick?: (attachment: FileAttachment) => void;
 }
 
@@ -228,7 +228,7 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
                   {corpusCitations.map((cit, index) => (
                     <button
                       key={`${cit.id}-${index}`}
-                      onClick={() => onCitationClick(cit)}
+                      onClick={() => onCitationClick(cit, corpusCitations)}
                       className="flex items-center justify-between md:justify-start gap-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/20 text-accent font-medium w-full md:w-auto text-xs md:text-sm px-3 py-2 md:px-2.5 md:py-1.5 rounded-md transition-colors shadow-sm"
                     >
                       <div className="flex items-center gap-1.5 truncate">

@@ -14,6 +14,9 @@ import { DocxViewer } from './DocxViewer';
 interface InsightPanelProps {
   isOpen: boolean;
   activeCitation: Citation | null;
+  /** Every citation from the same answer as activeCitation — used to mark ALL parts
+   *  actually cited from this parent document, not just the one clicked. */
+  relatedCitations?: Citation[];
   activeAttachment?: FileAttachment | null;
   onClose: () => void;
 }
@@ -100,7 +103,7 @@ function HighlightedPartText({ text, citationText }: { text: string; citationTex
   );
 }
 
-export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose }: InsightPanelProps) {
+export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeAttachment, onClose }: InsightPanelProps) {
   const { t } = useLanguage();
   const panelRef = useRef<HTMLElement>(null);
   const isDragging = useRef(false);
@@ -152,6 +155,17 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
 
   const citationKey = activeCitation?.id;
   const citationPartId = activeCitation?.part_id;
+
+  // Every part actually used by this answer FROM THIS document — the minimap marks
+  // all of them; only the one the user clicked gets the in-text highlight + auto-scroll.
+  const usedPartIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (citationPartId) ids.add(citationPartId);
+    for (const c of relatedCitations || []) {
+      if (c.id === citationKey && c.part_id) ids.add(c.part_id);
+    }
+    return ids;
+  }, [relatedCitations, citationKey, citationPartId]);
 
   useEffect(() => {
     if (!isOpen || !citationKey || isWebCitation) return;
@@ -219,24 +233,10 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
     else partNodeRefs.current.delete(id);
   }, []);
 
-  const loadPrevious = useCallback(async () => {
-    if (!citationKey || docOffset <= 0 || docPaging) return;
-    setDocPaging(true);
-    try {
-      const newOffset = Math.max(0, docOffset - PAGE_LIMIT);
-      const res = await authFetch(
-        `/api/documents/${encodeURIComponent(citationKey)}/full?offset=${newOffset}&limit=${docOffset - newOffset}`
-      );
-      if (res.ok) {
-        const page = await safeJson(res);
-        setDocParts(prev => [...(page.parts || []), ...prev]);
-        setDocOffset(newOffset);
-      }
-    } finally {
-      setDocPaging(false);
-    }
-  }, [citationKey, docOffset, docPaging]);
-
+  // Backward navigation deliberately has no scroll-triggered equivalent: the initial
+  // fetch is already centered on the cited part, and the minimap already covers the
+  // whole document for jumping anywhere (including earlier). Two separate "go back"
+  // controls doing the same job is exactly the confusing overlap being removed here.
   const loadMore = useCallback(async () => {
     if (!citationKey || docPaging) return;
     const nextOffset = docOffset + docParts.length;
@@ -254,6 +254,23 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
       setDocPaging(false);
     }
   }, [citationKey, docOffset, docParts.length, docTotalParts, docPaging]);
+
+  // Scrolling near the bottom of the loaded window quietly extends it — the ONLY
+  // navigation affordances in this panel are native scroll (forward) and the
+  // minimap (jump anywhere). No visible "load more" button duplicating either.
+  const bottomSentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = bottomSentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { root: scrollContainerRef.current, rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   const jumpToPart = useCallback(async (part: PartMeta) => {
     if (!citationKey) return;
@@ -511,26 +528,18 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
                     </div>
                   ) : docParts.length > 0 ? (
                     <div className="flex flex-col gap-1">
-                      {docOffset > 0 && (
-                        <button
-                          onClick={loadPrevious}
-                          disabled={docPaging}
-                          className="self-center mb-2 px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-white/10 rounded-full transition-colors disabled:opacity-50"
-                        >
-                          {t('insight.load_previous')}
-                        </button>
-                      )}
                       {docParts.map((part) => {
                         const isPrimary = part.id === targetPartId;
+                        const isUsed = usedPartIds.has(part.id);
                         return (
                           <div
                             key={part.id}
                             data-part-id={part.id}
                             ref={(node) => registerPartRef(part.id, node)}
                             className={`py-4 first:pt-0 border-l-2 pl-4 -ml-4 transition-colors ${
-                              isPrimary ? '' : 'border-transparent'
+                              isUsed ? '' : 'border-transparent'
                             }`}
-                            style={isPrimary ? { borderColor: ACCENT } : undefined}
+                            style={isUsed ? { borderColor: isPrimary ? ACCENT : `${ACCENT}80` } : undefined}
                           >
                             {part.part_title && (
                               <div className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-2">
@@ -548,13 +557,12 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
                         );
                       })}
                       {docOffset + docParts.length < docTotalParts && (
-                        <button
-                          onClick={loadMore}
-                          disabled={docPaging}
-                          className="self-center mt-2 px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-white/10 rounded-full transition-colors disabled:opacity-50"
-                        >
-                          {t('insight.load_more')}
-                        </button>
+                        <div ref={bottomSentinelRef} className="h-px w-full" aria-hidden="true" />
+                      )}
+                      {docPaging && (
+                        <div className="flex justify-center py-3 text-slate-400">
+                          <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                        </div>
                       )}
                     </div>
                   ) : (
@@ -564,12 +572,15 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
                   )}
                 </div>
 
-                {/* ── Minimap rail: click to jump. Proportional to content length. ── */}
+                {/* ── Minimap rail: one flag per part actually cited in this answer from
+                    this document, sized by real content length. The only jump control
+                    in the panel — native scroll only ever extends forward from here. ── */}
                 {!activeAttachment && !isWebCitation && minimapLayout.length > 1 && (
                   <div className="w-3 flex-shrink-0 relative my-3 mr-2">
                     <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-slate-200 dark:bg-white/10" />
                     {minimapLayout.map(({ part, top, height }) => {
                       const isActive = part.id === targetPartId;
+                      const isUsed = usedPartIds.has(part.id);
                       return (
                         <button
                           key={part.id}
@@ -580,12 +591,11 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
                             top: `${top * 100}%`,
                             height: `${Math.max(height * 100, 0.6)}%`,
                             minHeight: '3px',
-                            backgroundColor: isActive ? ACCENT : undefined,
                           }}
                         >
                           <span
-                            className={`block w-full h-full rounded-full ${isActive ? '' : 'bg-slate-300 dark:bg-white/15'}`}
-                            style={isActive ? { backgroundColor: ACCENT } : undefined}
+                            className={`block w-full h-full rounded-full ${isUsed ? '' : 'bg-slate-300 dark:bg-white/15'}`}
+                            style={isUsed ? { backgroundColor: isActive ? ACCENT : `${ACCENT}80` } : undefined}
                           />
                         </button>
                       );

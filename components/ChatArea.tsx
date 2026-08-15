@@ -21,7 +21,7 @@ interface ChatAreaProps {
   setInputValue: (val: string) => void;
   handleSendMessage: (text: string) => void;
   isLoading: boolean;
-  onCitationClick: (citation: Citation) => void;
+  onCitationClick: (citation: Citation, messageCitations: Citation[]) => void;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
   isHydrated?: boolean;

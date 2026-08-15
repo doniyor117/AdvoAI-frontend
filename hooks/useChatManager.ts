@@ -107,6 +107,9 @@ export function useChatManager(chatId?: string) {
   }, [useWebSearch]);
   const [isInsightOpen, setIsInsightOpen] = useState(false);
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
+  // Every citation from the SAME answer as activeCitation — lets the panel mark all
+  // parts that were actually used from a parent document, not just the one clicked.
+  const [activeMessageCitations, setActiveMessageCitations] = useState<Citation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [activeFeature, setActiveFeature] = useState<'chat' | 'compare_contracts' | 'create_contract'>('chat');
@@ -612,8 +615,9 @@ export function useChatManager(chatId?: string) {
     }
   }, [isHydrated, chatId, isAuthenticated, sendToBackend, sessions]);
 
-  const handleCitationClick = useCallback((citation: Citation) => {
+  const handleCitationClick = useCallback((citation: Citation, messageCitations: Citation[] = []) => {
     setActiveCitation(citation);
+    setActiveMessageCitations(messageCitations);
     setActiveAttachment(null);
     setIsInsightOpen(true);
   }, []);
@@ -628,6 +632,7 @@ export function useChatManager(chatId?: string) {
     setIsInsightOpen(false);
     setTimeout(() => {
       setActiveCitation(null);
+      setActiveMessageCitations([]);
       setActiveAttachment(null);
     }, 300); // Wait for exit animation
   }, []);
@@ -815,6 +820,7 @@ function getFileValidationError(file: File): string | null {
     removeAttachment,
     isInsightOpen,
     activeCitation,
+    activeMessageCitations,
     activeAttachment,
     setActiveAttachment,
     handleAttachmentClick,

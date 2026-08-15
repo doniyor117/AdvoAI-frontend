@@ -58,6 +58,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     setInputValue,
     isInsightOpen,
     activeCitation,
+    activeMessageCitations,
     activeAttachment,
     setActiveAttachment,
     isLoading,
@@ -131,9 +132,10 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         />
       )}
 
-      <InsightPanel 
+      <InsightPanel
         isOpen={isInsightOpen}
         activeCitation={activeCitation}
+        relatedCitations={activeMessageCitations}
         activeAttachment={activeAttachment}
         onClose={closeInsightPanel}
       />
