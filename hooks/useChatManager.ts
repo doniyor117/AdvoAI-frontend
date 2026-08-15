@@ -327,6 +327,7 @@ export function useChatManager(chatId?: string) {
     answer: string;
     citations: Citation[];
     sources?: Citation[];
+    attachments?: FileAttachment[];
     session_id: string | null;
     error?: string;
   }> => {
@@ -400,10 +401,21 @@ export function useChatManager(chatId?: string) {
       kind: (c.kind as 'corpus' | 'web') || 'corpus',
     }));
 
+    // The backend attaches a file when the model called the generate_contract tool
+    // mid-conversation. Persisted to history either way, but without mapping it here
+    // too, the file card only appeared after a reload of the current turn's reply.
+    const attachments: FileAttachment[] = (data.attachments || []).map((a: Record<string, unknown>) => ({
+      document_id: a.document_id as string,
+      display_name: (a.display_name as string) || 'document',
+      mime_type: (a.mime_type as string) || '',
+      s3_key: a.s3_key as string | undefined,
+    }));
+
     return {
       answer: data.answer,
       citations,
       sources: citations,
+      attachments,
       session_id: data.session_id || null,
     };
   }, [useWebSearch]);
@@ -519,6 +531,7 @@ export function useChatManager(chatId?: string) {
           role: 'assistant',
           text: result.answer,
           citations: result.sources || [],
+          attachments: result.attachments,
         };
         setMessages(prev => [...prev, assistantMsg]);
       })
@@ -588,6 +601,7 @@ export function useChatManager(chatId?: string) {
             role: 'assistant',
             text: result.answer,
             citations: result.sources || [],
+            attachments: result.attachments,
           };
           setMessages(prev => [...prev, assistantMsg]);
           clearPendingKeys();
