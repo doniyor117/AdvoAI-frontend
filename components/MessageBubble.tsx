@@ -386,7 +386,7 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
           : message.isError
             // isError was set but never read, so failures looked identical to answers.
             ? 'w-full rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/70 dark:bg-red-900/15 pt-3 pb-4 px-6 md:px-8 md:pt-4 md:pb-6'
-            : 'w-full bg-transparent pt-1 pb-4 px-6 md:px-8 md:pt-2 md:pb-6'
+            : 'w-full bg-transparent pt-3 pb-4 px-6 md:px-8 md:pt-4 md:pb-6'
         }`}>
         <div className={`prose max-w-none break-words ${isUser ? 'prose-sm md:prose-base prose-slate dark:prose-invert prose-p:my-0 prose-headings:my-0 font-sans font-medium text-slate-700 dark:text-slate-200' : 'prose-slate dark:prose-invert font-serif text-base md:text-lg leading-[1.6] md:leading-[1.7] prose-p:mb-6 prose-ul:mb-6 prose-ol:mb-6'}`}>
           <ReactMarkdown 
