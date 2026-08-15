@@ -44,6 +44,53 @@ function isDocxMime(mime?: string, name?: string): boolean {
   return /\.docx?$/i.test(name || '');
 }
 
+function isPdfMime(mime?: string, name?: string): boolean {
+  if (mime === 'application/pdf') return true;
+  return /\.pdf$/i.test(name || '');
+}
+
+/**
+ * Inline PDF rendering support in mobile browsers is inconsistent — a raw
+ * `<iframe src={r2Url}>` can render blank, or force a download instead of
+ * previewing, depending on the browser. Google's public docs-viewer wrapper
+ * renders the PDF itself and is far more consistently embeddable across
+ * mobile Chrome/Safari, so it's used here instead of the raw file URL. An
+ * always-visible "open externally" link is the escape hatch if even that
+ * fails to render for some reason.
+ */
+function PdfViewer({ url, displayName }: { url: string; displayName: string }) {
+  const { t } = useLanguage();
+  const [isLoaded, setIsLoaded] = useState(false);
+  const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+
+  return (
+    <div className="flex flex-col w-full h-full min-h-[60vh] gap-2">
+      <div className="relative flex-1 rounded-md overflow-hidden border border-slate-200 dark:border-white/10 bg-white dark:bg-black/20">
+        {!isLoaded && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-400 bg-[#FDFBF7] dark:bg-sidebar">
+            <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <p className="text-sm">{t('insight.loading_preview')}</p>
+          </div>
+        )}
+        <iframe
+          src={viewerUrl}
+          className="w-full h-full"
+          title={displayName}
+          onLoad={() => setIsLoaded(true)}
+        />
+      </div>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="self-center text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:underline transition-colors"
+      >
+        {t('insight.open_source')}
+      </a>
+    </div>
+  );
+}
+
 // ── Text matching for the in-part highlight ──────────────────
 // Builds a whitespace/quote-tolerant regex from the citation snippet and matches it
 // directly against the ORIGINAL part text — no normalized-index-to-original-index
@@ -474,14 +521,24 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
                       <div className="flex flex-col w-full h-full min-h-[50vh]">
                         <DocxViewer url={previewUrl} displayName={activeAttachment.display_name} />
                       </div>
+                    ) : previewUrl && isPdfMime(activeAttachment.mime_type, activeAttachment.display_name) ? (
+                      <PdfViewer url={previewUrl} displayName={activeAttachment.display_name} />
                     ) : previewUrl ? (
-                      <div className="flex flex-col w-full h-full min-h-[50vh]">
+                      <div className="flex flex-col w-full h-full min-h-[50vh] gap-2">
                         <iframe
                           src={previewUrl}
                           className="w-full h-full flex-1 border border-slate-200 dark:border-white/10 rounded-md bg-white dark:bg-black/20"
                           title={activeAttachment.display_name}
                           onError={(e) => { (e.currentTarget as HTMLIFrameElement).style.display = 'none'; }}
                         />
+                        <a
+                          href={previewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="self-center text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:underline transition-colors"
+                        >
+                          {t('insight.open_source')}
+                        </a>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">

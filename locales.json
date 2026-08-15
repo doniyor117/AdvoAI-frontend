@@ -110,7 +110,7 @@
       "web_search_toggle_off": "Turn on web search so {chatbot_name} can look up up-to-date information.",
       "web_search_guest_disabled": "Sign in to enable web search.",
       "from_the_web": "From the web",
-      "sources_label": "Sources"
+      "corpus_sources_label": "From our legal database"
     },
     "sidebar": {
       "new_consultation": "New chat",
@@ -334,7 +334,7 @@
       "web_search_toggle_off": "{chatbot_name} eng so'nggi ma'lumotlarni topishi uchun veb qidiruvni yoqing.",
       "web_search_guest_disabled": "Veb qidiruvni yoqish uchun tizimga kiring.",
       "from_the_web": "Internetdan",
-      "sources_label": "Manbalar"
+      "corpus_sources_label": "Huquqiy bazamizdan"
     },
     "sidebar": {
       "new_consultation": "Yangi chat",
@@ -558,7 +558,7 @@
       "web_search_toggle_off": "Включите веб-поиск, чтобы {chatbot_name} мог находить актуальную информацию.",
       "web_search_guest_disabled": "Войдите в систему, чтобы включить веб-поиск.",
       "from_the_web": "Из интернета",
-      "sources_label": "Источники"
+      "corpus_sources_label": "Из нашей базы законов"
     },
     "sidebar": {
       "new_consultation": "Новый чат",

@@ -3,7 +3,7 @@
 import React, { useState, memo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChevronRight, ChevronDown, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote, AlertCircle, Download, ExternalLink, Scale, Globe } from 'lucide-react';
+import { ChevronRight, ChevronDown, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote, AlertCircle, Download, Scale, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -15,12 +15,16 @@ import { authFetch, downloadFile } from '@/lib/authFetch';
  * A document AdvoAI produced, offered as a download.
  * Uses the same presigned-URL endpoint that powers attachment previews.
  */
-function GeneratedFileCard({ file }: { file: FileAttachment }) {
+function GeneratedFileCard({ file, onAttachmentClick }: { file: FileAttachment; onAttachmentClick?: (f: FileAttachment) => void }) {
   const url = usePresignedUrl(file);
   const ext = file.display_name.split('.').pop()?.toUpperCase() || 'DOC';
 
   return (
-    <div className="flex items-center gap-3 w-full max-w-md rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#141414] px-4 py-3 shadow-sm">
+    <button
+      type="button"
+      onClick={() => onAttachmentClick?.(file)}
+      className="flex items-center gap-3 w-full max-w-md text-left rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#141414] px-4 py-3 shadow-sm hover:border-black/20 dark:hover:border-white/20 transition-colors"
+    >
       <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex-shrink-0">
         <span className="text-[10px] font-extrabold tracking-wide text-blue-600 dark:text-blue-400">
           {ext.slice(0, 4)}
@@ -31,25 +35,24 @@ function GeneratedFileCard({ file }: { file: FileAttachment }) {
           {file.display_name}
         </p>
         <p className="text-xs text-slate-400">
-          {ext === 'DOCX' ? 'Word document' : ext}
+          {ext === 'DOCX' ? 'Word document' : ext === 'PDF' ? 'PDF document' : ext}
         </p>
       </div>
       {url ? (
-        <a
-          href={url}
-          download={file.display_name}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => { e.preventDefault(); downloadFile(url, file.display_name); }}
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); downloadFile(url, file.display_name); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); downloadFile(url, file.display_name); } }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex-shrink-0"
         >
           <Download className="w-3.5 h-3.5" />
           Download
-        </a>
+        </span>
       ) : (
         <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin flex-shrink-0" />
       )}
-    </div>
+    </button>
   );
 }
 
@@ -150,12 +153,45 @@ function getDomain(url?: string): string {
   }
 }
 
+/** A real favicon for a web result's domain — the same "little site logos" pattern
+ *  Google's AI Overview uses — with a graceful fallback to a generic globe glyph if
+ *  the domain has none or the request fails. Google's public favicon endpoint needs
+ *  no API key. */
+function SourceFavicon({ url, size = 20 }: { url?: string; size?: number }) {
+  const domain = getDomain(url);
+  const [failed, setFailed] = useState(false);
+
+  if (!domain || failed) {
+    return (
+      <div
+        className="rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0"
+        style={{ width: size, height: size }}
+      >
+        <Globe className="text-slate-400" style={{ width: size * 0.55, height: size * 0.55 }} />
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://www.google.com/s2/favicons?sz=64&domain=${domain}`}
+      alt=""
+      onError={() => setFailed(true)}
+      className="rounded-full bg-slate-100 dark:bg-slate-800 flex-shrink-0 object-contain p-0.5"
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
 /**
- * The verified legal sources behind an answer, collapsed into a single "Sources"
- * control that expands into a list — the pattern Google's AI Overview / AI Mode
- * uses for its source list, adapted to this app's tokens. Collapsed by default so
- * a long answer doesn't end in a wall of chips; the stacked icon preview and count
- * are enough to signal "grounded in N documents" at a glance.
+ * The verified legal sources behind an answer, collapsed into a single control
+ * that expands into a list — the pattern Google's AI Overview / AI Mode uses for
+ * its source list, adapted to this app's tokens. Collapsed by default so a long
+ * answer doesn't end in a wall of chips; the stacked icon preview and count are
+ * enough to signal "grounded in N documents" at a glance. Labeled explicitly as
+ * OUR database (not just "Sources") so it reads unambiguously distinct from the
+ * live-web dropdown next to it.
  */
 function SourcesDropdown({
   citations,
@@ -168,7 +204,7 @@ function SourcesDropdown({
   const { t } = useLanguage();
 
   return (
-    <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5">
+    <div className="flex flex-col">
       <button
         onClick={() => setIsOpen(o => !o)}
         className="flex items-center gap-2.5 py-1 pr-2 -ml-1 pl-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
@@ -186,7 +222,7 @@ function SourcesDropdown({
           ))}
         </div>
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
-          {t('chat.sources_label')} ({citations.length})
+          {t('chat.corpus_sources_label')} ({citations.length})
         </span>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -200,7 +236,7 @@ function SourcesDropdown({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 flex flex-col gap-1">
+            <div className="mt-2 flex flex-col gap-1 min-w-[240px] max-w-sm">
               {citations.map((cit, index) => (
                 <button
                   key={`${cit.id}-${index}`}
@@ -229,20 +265,27 @@ function SourcesDropdown({
  * Live web results — visibly quieter and structurally distinct from
  * SourcesDropdown's verified corpus citations, so a random webpage is never
  * mistaken for vetted legislation. Also collapsed for the same reason: an answer
- * shouldn't end in a wall of links.
+ * shouldn't end in a wall of links. Real per-domain favicons (not a generic globe
+ * per item) so it reads like an actual source list, not a placeholder.
  */
-function WebSourcesDropdown({ citations, hasCorpusSources }: { citations: Citation[]; hasCorpusSources: boolean }) {
+function WebSourcesDropdown({ citations }: { citations: Citation[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const { t } = useLanguage();
 
   return (
-    <div className={hasCorpusSources ? 'mt-2' : 'mt-4 pt-4 border-t border-black/5 dark:border-white/5'}>
+    <div className="flex flex-col">
       <button
         onClick={() => setIsOpen(o => !o)}
-        className="flex items-center gap-2 py-1 pr-2 -ml-1 pl-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
+        className="flex items-center gap-2.5 py-1 pr-2 -ml-1 pl-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
         aria-expanded={isOpen}
       >
-        <Globe className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+        <div className="flex -space-x-2">
+          {citations.slice(0, 3).map((cit, i) => (
+            <div key={`${cit.id}-${i}`} className="ring-2 ring-background dark:ring-[#0a0a0a] rounded-full" style={{ zIndex: 3 - i }}>
+              <SourceFavicon url={cit.source_url} size={20} />
+            </div>
+          ))}
+        </div>
         <span className="text-xs font-medium text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
           {t('chat.from_the_web')} ({citations.length})
         </span>
@@ -258,7 +301,7 @@ function WebSourcesDropdown({ citations, hasCorpusSources }: { citations: Citati
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-1.5 flex flex-col gap-0.5">
+            <div className="mt-2 flex flex-col gap-0.5 min-w-[240px] max-w-sm">
               {citations.map((cit, index) => (
                 <a
                   key={`${cit.id}-${index}`}
@@ -267,9 +310,7 @@ function WebSourcesDropdown({ citations, hasCorpusSources }: { citations: Citati
                   rel="noopener noreferrer"
                   className="flex items-center gap-2.5 py-1.5 px-1 rounded-lg hover:bg-black/[0.03] dark:hover:bg-white/[0.04] text-left transition-colors group/item"
                 >
-                  <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
-                    <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
-                  </div>
+                  <SourceFavicon url={cit.source_url} size={20} />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-slate-600 dark:text-slate-300 truncate">{cit.title}</p>
                     {getDomain(cit.source_url) && (
@@ -334,7 +375,7 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
       {!isUser && message.attachments && message.attachments.length > 0 && (
         <div className="flex flex-col gap-2 mb-3 w-full px-6 md:px-8">
           {message.attachments.map((file, idx) => (
-            <GeneratedFileCard key={idx} file={file} />
+            <GeneratedFileCard key={idx} file={file} onAttachmentClick={onAttachmentClick} />
           ))}
         </div>
       )}
@@ -367,14 +408,14 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
           const corpusCitations = message.citations.filter(c => (c.kind || 'corpus') === 'corpus');
           const webCitations = message.citations.filter(c => c.kind === 'web');
           return (
-            <>
+            <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5 flex flex-wrap items-start gap-x-5 gap-y-3">
               {corpusCitations.length > 0 && (
                 <SourcesDropdown citations={corpusCitations} onCitationClick={onCitationClick} />
               )}
               {webCitations.length > 0 && (
-                <WebSourcesDropdown citations={webCitations} hasCorpusSources={corpusCitations.length > 0} />
+                <WebSourcesDropdown citations={webCitations} />
               )}
-            </>
+            </div>
           );
         })()}
 
