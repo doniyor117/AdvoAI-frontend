@@ -470,18 +470,6 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
                       <Download className="w-4 h-4" />
                     </a>
                   )}
-                  {sourceHref && (
-                    <a
-                      href={sourceHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
-                      aria-label={t('insight.open_source')}
-                      title={t('insight.open_source')}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  )}
                   <button
                     type="button"
                     onClick={onClose}
@@ -665,6 +653,20 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
                   </div>
                 )}
               </div>
+
+              {!activeAttachment && sourceHref && (
+                <div className="p-4 border-t border-slate-200 dark:border-border bg-[#FDFBF7] dark:bg-sidebar flex-shrink-0 z-10">
+                  <a
+                    href={sourceHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2 bg-popover border border-border rounded-lg text-sm font-medium text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  >
+                    {isWebCitation ? t('insight.open_source') : t('insight.view_on_lex')}
+                    <ChevronRight className="w-4 h-4" />
+                  </a>
+                </div>
+              )}
             </div>
           </motion.aside>
         </>
