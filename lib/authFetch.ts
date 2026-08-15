@@ -63,22 +63,51 @@ export async function safeJson(res: Response): Promise<any> {
  * bucket's CORS policy doesn't allow cross-origin reads), so this can only
  * improve on the previous always-reachable behavior, never regress it.
  */
+function saveBlob(blob: Blob, filename: string): void {
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+}
+
 export async function downloadFile(url: string, filename: string): Promise<void> {
     try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`Download fetch failed (${res.status})`);
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(blobUrl);
+        saveBlob(await res.blob(), filename);
     } catch (err) {
         console.warn('[downloadFile] Falling back to direct navigation:', err);
         window.open(url, '_blank', 'noopener,noreferrer');
+    }
+}
+
+/**
+ * Same as downloadFile(), but fetches through this backend's own
+ * `/api/chat/file/{s3_key}/raw` proxy (via authFetch, so it carries the Bearer
+ * token) instead of hitting the R2 presigned URL directly. R2 buckets have no
+ * CORS policy by default, which blocks `fetch()`/blob reads from a different
+ * origin even though direct navigation to the same URL works fine — proxying
+ * through our own, already-correctly-configured-for-CORS API sidesteps that
+ * without needing any bucket-level configuration change.
+ *
+ * Falls back to the presigned-URL variant (downloadFile) if `fallbackUrl` is
+ * given and the proxy fetch fails, so a proxy outage degrades gracefully
+ * instead of breaking the download entirely.
+ */
+export async function downloadFileByKey(s3Key: string, filename: string, fallbackUrl?: string): Promise<void> {
+    try {
+        const res = await authFetch(`/api/chat/file/${encodeURIComponent(s3Key)}/raw`);
+        if (!res.ok) throw new Error(`Download fetch failed (${res.status})`);
+        saveBlob(await res.blob(), filename);
+    } catch (err) {
+        console.warn('[downloadFileByKey] Falling back:', err);
+        if (fallbackUrl) {
+            await downloadFile(fallbackUrl, filename);
+        }
     }
 }
 

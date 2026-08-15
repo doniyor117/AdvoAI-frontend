@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import { Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { authFetch, safeJson, downloadFile } from '@/lib/authFetch';
+import { authFetch, safeJson, downloadFile, downloadFileByKey } from '@/lib/authFetch';
 import { DocxViewer } from './DocxViewer';
 
 interface InsightPanelProps {
@@ -466,7 +466,12 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
                       download={activeAttachment.display_name}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => { e.preventDefault(); downloadFile(previewUrl, activeAttachment.display_name); }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        activeAttachment.s3_key
+                          ? downloadFileByKey(activeAttachment.s3_key, activeAttachment.display_name, previewUrl)
+                          : downloadFile(previewUrl, activeAttachment.display_name);
+                      }}
                       className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
                       aria-label={t('insight.download')}
                       title={t('insight.download')}
@@ -511,7 +516,7 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
                       )
                     ) : previewUrl && isDocxMime(activeAttachment.mime_type, activeAttachment.display_name) ? (
                       <div className="flex flex-col w-full h-full min-h-[50vh]">
-                        <DocxViewer url={previewUrl} displayName={activeAttachment.display_name} />
+                        <DocxViewer url={previewUrl} displayName={activeAttachment.display_name} s3Key={activeAttachment.s3_key} />
                       </div>
                     ) : previewUrl && isPdfMime(activeAttachment.mime_type, activeAttachment.display_name) ? (
                       <PdfViewer url={previewUrl} displayName={activeAttachment.display_name} />

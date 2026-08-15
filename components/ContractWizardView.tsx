@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { ArrowLeft, FileSignature, Briefcase, Home, Shield, ChevronRight, Loader2, Download, MessageSquare, RefreshCw, Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { authFetch, safeJson, downloadFile } from '@/lib/authFetch';
+import { authFetch, safeJson, downloadFile, downloadFileByKey } from '@/lib/authFetch';
 
 type FieldDef = { key: string; label: string; placeholder?: string; type?: 'text' | 'textarea' };
 
@@ -219,7 +219,7 @@ export function ContractWizardView({ isSidebarOpen, setIsSidebarOpen, onBack }: 
                     download={result.display_name}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={(e) => { e.preventDefault(); downloadFile(downloadUrl, result.display_name); }}
+                    onClick={(e) => { e.preventDefault(); result.s3_key ? downloadFileByKey(result.s3_key, result.display_name, downloadUrl) : downloadFile(downloadUrl, result.display_name); }}
                     className="px-5 py-2.5 bg-[#0A2540] hover:bg-[#113255] text-white rounded-xl font-outfit font-semibold text-sm transition-colors flex items-center gap-2 flex-shrink-0"
                   >
                     <Download className="w-4 h-4" />

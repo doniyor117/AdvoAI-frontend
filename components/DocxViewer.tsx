@@ -3,11 +3,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileText, Download } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { downloadFile } from '@/lib/authFetch';
+import { authFetch, downloadFile, downloadFileByKey } from '@/lib/authFetch';
 
 interface DocxViewerProps {
   url: string;
   displayName: string;
+  /** When present, the blob is fetched through this backend's own /raw proxy
+   *  (authFetch, so it carries the Bearer token) instead of the presigned R2 URL
+   *  directly — R2 has no CORS policy by default, which blocks `fetch()` even
+   *  though a plain link to the same URL works fine for navigation/download. */
+  s3Key?: string;
 }
 
 const RENDER_TIMEOUT_MS = 20_000;
@@ -18,7 +23,7 @@ const RENDER_TIMEOUT_MS = 20_000;
  * module resolution when imported as an ES module — no `window.JSZip` global, no
  * vendored script tag, none of the setup a UMD `<script>`-tag approach would need.
  */
-export function DocxViewer({ url, displayName }: DocxViewerProps) {
+export function DocxViewer({ url, displayName, s3Key }: DocxViewerProps) {
   const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'unsupported'>('loading');
@@ -40,9 +45,12 @@ export function DocxViewer({ url, displayName }: DocxViewerProps) {
 
     (async () => {
       try {
+        const fetchBlob = s3Key
+          ? authFetch(`/api/chat/file/${encodeURIComponent(s3Key)}/raw`, { signal: controller.signal })
+          : fetch(url, { signal: controller.signal });
         const [{ renderAsync }, res] = await Promise.all([
           import('docx-preview'),
-          fetch(url, { signal: controller.signal }),
+          fetchBlob,
         ]);
         if (!res.ok) throw new Error(`fetch_failed_${res.status}`);
         const blob = await res.blob();
@@ -73,7 +81,7 @@ export function DocxViewer({ url, displayName }: DocxViewerProps) {
       controller.abort();
       clearTimeout(timeoutId);
     };
-  }, [url, isLegacyDoc]);
+  }, [url, s3Key, isLegacyDoc]);
 
   if (isLegacyDoc || status === 'error') {
     return (
@@ -89,7 +97,7 @@ export function DocxViewer({ url, displayName }: DocxViewerProps) {
           download={displayName}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={(e) => { e.preventDefault(); downloadFile(url, displayName); }}
+          onClick={(e) => { e.preventDefault(); s3Key ? downloadFileByKey(s3Key, displayName, url) : downloadFile(url, displayName); }}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
         >
           <Download className="w-3.5 h-3.5" />

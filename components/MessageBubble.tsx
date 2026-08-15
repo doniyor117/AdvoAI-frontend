@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePresignedUrl } from '@/hooks/usePresignedUrl';
-import { authFetch, downloadFile } from '@/lib/authFetch';
+import { authFetch, downloadFile, downloadFileByKey } from '@/lib/authFetch';
 
 /** A single attachment card — shows image thumbnail (local or from R2) or file-type card */
 /**
@@ -42,8 +42,8 @@ function GeneratedFileCard({ file, onAttachmentClick }: { file: FileAttachment; 
         <span
           role="button"
           tabIndex={0}
-          onClick={(e) => { e.stopPropagation(); downloadFile(url, file.display_name); }}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); downloadFile(url, file.display_name); } }}
+          onClick={(e) => { e.stopPropagation(); file.s3_key ? downloadFileByKey(file.s3_key, file.display_name, url) : downloadFile(url, file.display_name); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); file.s3_key ? downloadFileByKey(file.s3_key, file.display_name, url) : downloadFile(url, file.display_name); } }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex-shrink-0"
         >
           <Download className="w-3.5 h-3.5" />
@@ -354,7 +354,7 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      className={`flex flex-col w-full py-4 md:py-6 scroll-mt-24 md:scroll-mt-28 ${isUser ? 'items-end' : 'items-start'}`}
+      className={`flex flex-col w-full scroll-mt-24 md:scroll-mt-28 ${isUser ? 'items-end pt-6 md:pt-8 pb-0' : 'items-start pt-0 pb-6 md:pb-8'}`}
     >
       {/* ── Attachments: rendered OUTSIDE and ABOVE the text bubble ── */}
       {/* User attachments are thumbnails; assistant attachments are generated
@@ -385,8 +385,8 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
           ? 'w-fit max-w-[85%] md:max-w-2xl bg-secondary text-secondary-foreground rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm'
           : message.isError
             // isError was set but never read, so failures looked identical to answers.
-            ? 'w-full rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/70 dark:bg-red-900/15 py-4 px-6 md:px-8 md:py-6'
-            : 'w-full bg-transparent py-4 px-6 md:px-8 md:py-8'
+            ? 'w-full rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/70 dark:bg-red-900/15 pt-3 pb-4 px-6 md:px-8 md:pt-4 md:pb-6'
+            : 'w-full bg-transparent pt-1 pb-4 px-6 md:px-8 md:pt-2 md:pb-6'
         }`}>
         <div className={`prose max-w-none break-words ${isUser ? 'prose-sm md:prose-base prose-slate dark:prose-invert prose-p:my-0 prose-headings:my-0 font-sans font-medium text-slate-700 dark:text-slate-200' : 'prose-slate dark:prose-invert font-serif text-base md:text-lg leading-[1.6] md:leading-[1.7] prose-p:mb-6 prose-ul:mb-6 prose-ol:mb-6'}`}>
           <ReactMarkdown 
