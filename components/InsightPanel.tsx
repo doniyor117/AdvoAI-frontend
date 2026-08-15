@@ -116,7 +116,7 @@ function buildHighlightRegex(citationText: string): RegExp | null {
   }
 }
 
-function HighlightedPartText({ text, citationText }: { text: string; citationText: string }) {
+function HighlightedPartText({ text, citationText, isPrimary = true }: { text: string; citationText: string; isPrimary?: boolean }) {
   const match = useMemo(() => {
     const re = buildHighlightRegex(citationText);
     if (!re) return null;
@@ -141,7 +141,7 @@ function HighlightedPartText({ text, citationText }: { text: string; citationTex
       {before}
       <mark
         className="rounded px-0.5 -mx-0.5"
-        style={{ backgroundColor: `${ACCENT}33`, color: 'inherit', boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}
+        style={{ backgroundColor: isPrimary ? `${ACCENT}40` : `${ACCENT}20`, color: 'inherit', boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}
       >
         {highlighted}
       </mark>
@@ -203,16 +203,20 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
   const citationKey = activeCitation?.id;
   const citationPartId = activeCitation?.part_id;
 
-  // Every part actually used by this answer FROM THIS document — the minimap marks
-  // all of them; only the one the user clicked gets the in-text highlight + auto-scroll.
-  const usedPartIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (citationPartId) ids.add(citationPartId);
+  // Every part actually used by this answer FROM THIS document, mapped to ITS OWN
+  // citation text — each used part highlights exactly the snippet that citation
+  // matched, not a border spanning the whole card. Only the part the user actually
+  // clicked also gets auto-scroll.
+  const usedPartCitations = useMemo(() => {
+    const map = new Map<string, string>();
+    if (citationPartId && activeCitation?.text) map.set(citationPartId, activeCitation.text);
     for (const c of relatedCitations || []) {
-      if (c.id === citationKey && c.part_id) ids.add(c.part_id);
+      if (c.id === citationKey && c.part_id && c.text && !map.has(c.part_id)) {
+        map.set(c.part_id, c.text);
+      }
     }
-    return ids;
-  }, [relatedCitations, citationKey, citationPartId]);
+    return map;
+  }, [relatedCitations, citationKey, citationPartId, activeCitation?.text]);
 
   useEffect(() => {
     if (!isOpen || !citationKey || isWebCitation) return;
@@ -349,19 +353,19 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
   // midpoint through the document — proportional to real content length, not part
   // count, so a three-line article and a 200-line chapter don't get equal weight.
   const minimapCheckpoints = useMemo(() => {
-    if (!docPartsMeta || docPartsMeta.length === 0 || usedPartIds.size === 0) return [];
+    if (!docPartsMeta || docPartsMeta.length === 0 || usedPartCitations.size === 0) return [];
     const totalChars = docPartsMeta.reduce((sum, p) => sum + (p.char_length || 1), 0) || 1;
     let cursor = 0;
     const checkpoints: { part: PartMeta; top: number }[] = [];
     for (const p of docPartsMeta) {
       const span = (p.char_length || 1) / totalChars;
-      if (usedPartIds.has(p.id)) {
+      if (usedPartCitations.has(p.id)) {
         checkpoints.push({ part: p, top: cursor + span / 2 });
       }
       cursor += span;
     }
     return checkpoints;
-  }, [docPartsMeta, usedPartIds]);
+  }, [docPartsMeta, usedPartCitations]);
 
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -580,25 +584,25 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
                   ) : docParts.length > 0 ? (
                     <div className="flex flex-col gap-1">
                       {docParts.map((part) => {
-                        const isPrimary = part.id === targetPartId;
-                        const isUsed = usedPartIds.has(part.id);
+                        const citationText = usedPartCitations.get(part.id);
+                        // Auto-generated split titles ("{Long Title} (Part 12)") are a
+                        // chunking artifact, not a real heading — repeating one above
+                        // every card is noise. A genuine article/section title still shows.
+                        const showTitle = part.part_title && !/\(Part\s*\d+\)\s*$/i.test(part.part_title);
                         return (
                           <div
                             key={part.id}
                             data-part-id={part.id}
                             ref={(node) => registerPartRef(part.id, node)}
-                            className={`py-4 first:pt-0 border-l-2 pl-4 -ml-4 transition-colors ${
-                              isUsed ? '' : 'border-transparent'
-                            }`}
-                            style={isUsed ? { borderColor: isPrimary ? ACCENT : `${ACCENT}80` } : undefined}
+                            className="py-4 first:pt-0"
                           >
-                            {part.part_title && (
+                            {showTitle && (
                               <div className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-2">
                                 {part.part_title}
                               </div>
                             )}
-                            {isPrimary && activeCitation?.text ? (
-                              <HighlightedPartText text={part.text} citationText={activeCitation.text} />
+                            {citationText ? (
+                              <HighlightedPartText text={part.text} citationText={citationText} isPrimary={part.id === targetPartId} />
                             ) : (
                               <div className="prose prose-sm md:prose-base prose-slate dark:prose-invert prose-headings:font-semibold max-w-none text-slate-800 dark:text-[#E6EDF3] leading-relaxed">
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{part.text}</ReactMarkdown>
