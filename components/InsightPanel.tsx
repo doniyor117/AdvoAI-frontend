@@ -224,7 +224,7 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
     if (!targetPartId) return;
     const node = partNodeRefs.current.get(targetPartId);
     if (node) {
-      node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      node.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
   }, [targetPartId, docParts]);
 
@@ -277,7 +277,7 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
     if (docParts.some(p => p.id === part.id)) {
       setTargetPartId(part.id);
       const node = partNodeRefs.current.get(part.id);
-      node?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      node?.scrollIntoView({ block: 'start', behavior: 'smooth' });
       return;
     }
     setDocLoading(true);
