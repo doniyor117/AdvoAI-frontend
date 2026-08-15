@@ -3,7 +3,7 @@
 import React, { useState, memo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, ChevronRight, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote, AlertCircle, Download } from 'lucide-react';
+import { FileText, ChevronRight, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote, AlertCircle, Download, ExternalLink } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -218,25 +218,57 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
           </ReactMarkdown>
         </div>
 
-        {message.citations && message.citations.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5 flex flex-col md:flex-row flex-wrap gap-2">
-            {message.citations.map((cit, index) => (
-              <button
-                key={`${cit.id}-${index}`}
-                onClick={() => onCitationClick(cit)}
-                className="flex items-center justify-between md:justify-start gap-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/20 text-accent font-medium w-full md:w-auto text-xs md:text-sm px-3 py-2 md:px-2.5 md:py-1.5 rounded-md transition-colors shadow-sm"
-              >
-                <div className="flex items-center gap-1.5 truncate">
-                  <FileText className="w-3.5 h-3.5 flex-shrink-0" />
-                  {/* Was `cit.title.split(',')[1]` — blindly taking the text after the first comma
-                      of a Lex.uz title, which is often a date fragment or nothing at all. */}
-                  <span className="truncate">{t('chat.cite')}: {cit.title}</span>
+        {message.citations && message.citations.length > 0 && (() => {
+          const corpusCitations = message.citations.filter(c => (c.kind || 'corpus') === 'corpus');
+          const webCitations = message.citations.filter(c => c.kind === 'web');
+          return (
+            <>
+              {corpusCitations.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5 flex flex-col md:flex-row flex-wrap gap-2">
+                  {corpusCitations.map((cit, index) => (
+                    <button
+                      key={`${cit.id}-${index}`}
+                      onClick={() => onCitationClick(cit)}
+                      className="flex items-center justify-between md:justify-start gap-1.5 bg-accent/10 hover:bg-accent/20 border border-accent/20 text-accent font-medium w-full md:w-auto text-xs md:text-sm px-3 py-2 md:px-2.5 md:py-1.5 rounded-md transition-colors shadow-sm"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                        {/* Was `cit.title.split(',')[1]` — blindly taking the text after the first comma
+                            of a Lex.uz title, which is often a date fragment or nothing at all. */}
+                        <span className="truncate">{t('chat.cite')}: {cit.title}</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 ml-0.5 opacity-70 flex-shrink-0" />
+                    </button>
+                  ))}
                 </div>
-                <ChevronRight className="w-3.5 h-3.5 ml-0.5 opacity-70 flex-shrink-0" />
-              </button>
-            ))}
-          </div>
-        )}
+              )}
+
+              {webCitations.length > 0 && (
+                <div className={`flex flex-col gap-1.5 ${corpusCitations.length > 0 ? 'mt-3' : 'mt-4 pt-4 border-t border-black/5 dark:border-white/5'}`}>
+                  <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                    {t('chat.from_the_web')}
+                  </span>
+                  <div className="flex flex-col md:flex-row flex-wrap gap-2">
+                    {webCitations.map((cit, index) => (
+                      <a
+                        key={`${cit.id}-${index}`}
+                        href={cit.source_url || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between md:justify-start gap-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:underline font-normal w-full md:w-auto text-xs md:text-sm px-1 py-1 transition-colors"
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
+                          <span className="truncate">{cit.title}</span>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* Action Buttons for AdvoAI */}
         {!isUser && (

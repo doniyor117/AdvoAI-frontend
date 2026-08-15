@@ -104,7 +104,12 @@
       "unlock_pro": "Unlock all the benefits of top AI — all in one place.",
       "activate_pro": "Activate Pro.",
       "cite": "Cite",
-      "footer_disclaimer": "{chatbot_name} is AI and can make mistakes. Check important info."
+      "footer_disclaimer": "{chatbot_name} is AI and can make mistakes. Check important info.",
+      "web_search_toggle": "Web search",
+      "web_search_toggle_on": "Web search is on — {chatbot_name} may search the web for up-to-date information.",
+      "web_search_toggle_off": "Turn on web search so {chatbot_name} can look up up-to-date information.",
+      "web_search_guest_disabled": "Sign in to enable web search.",
+      "from_the_web": "From the web"
     },
     "sidebar": {
       "new_consultation": "New chat",
@@ -154,7 +159,19 @@
       "connect": "Connect"
     },
     "insight": {
-      "view_on_lex": "View on Lex.uz"
+      "view_on_lex": "View on Lex.uz",
+      "download": "Download",
+      "loading_preview": "Loading preview...",
+      "docx_legacy_unsupported": "Legacy .doc files can't be previewed. Download it to view the document.",
+      "docx_render_failed": "This document could not be previewed. You can still download it.",
+      "sign_in_required": "Sign in to view the full legal document.",
+      "doc_load_failed": "This document could not be loaded.",
+      "load_previous": "Load previous",
+      "load_more": "Load more",
+      "from_web": "From the web — not part of the verified legal corpus",
+      "open_source": "Open source",
+      "no_title": "Untitled document",
+      "sign_in_button": "Log In"
     },
     "wizard": {
       "title": "Create Contract",
@@ -177,7 +194,13 @@
       "download": "Download",
       "refine_in_chat": "Refine in chat",
       "regenerate": "Regenerate",
-      "new_document": "New document"
+      "new_document": "New document",
+      "open_sidebar": "Open sidebar",
+      "format_label": "Document format",
+      "format_docx": "Word (.docx)",
+      "format_pdf": "PDF",
+      "word_document": "Word document",
+      "pdf_document": "PDF document"
     },
     "prompts": {
       "draft_custom_contract": "I want to draft a new custom contract. Please ask me questions to guide me through the drafting process.",
@@ -197,7 +220,8 @@
       "clause": "Clause",
       "absent": "not present",
       "continue_in_chat": "Continue in chat",
-      "new_comparison": "New comparison"
+      "new_comparison": "New comparison",
+      "open_sidebar": "Open sidebar"
     }
   },
   "uz": {
@@ -305,7 +329,12 @@
       "unlock_pro": "Eng yaxshi sun'iy intellektning barcha afzalliklarini oching — barchasi bir joyda.",
       "activate_pro": "Pro-ni faollashtirish.",
       "cite": "Manba",
-      "footer_disclaimer": "{chatbot_name} sun'iy intellekt va xato qilishi mumkin. Muhim ma'lumotlarni tekshiring."
+      "footer_disclaimer": "{chatbot_name} sun'iy intellekt va xato qilishi mumkin. Muhim ma'lumotlarni tekshiring.",
+      "web_search_toggle": "Veb qidiruv",
+      "web_search_toggle_on": "Veb qidiruv yoqilgan — {chatbot_name} eng so'nggi ma'lumotlarni internetdan qidirishi mumkin.",
+      "web_search_toggle_off": "{chatbot_name} eng so'nggi ma'lumotlarni topishi uchun veb qidiruvni yoqing.",
+      "web_search_guest_disabled": "Veb qidiruvni yoqish uchun tizimga kiring.",
+      "from_the_web": "Internetdan"
     },
     "sidebar": {
       "new_consultation": "Yangi chat",
@@ -355,7 +384,19 @@
       "connect": "Ulash"
     },
     "insight": {
-      "view_on_lex": "Lex.uz da ko'rish"
+      "view_on_lex": "Lex.uz da ko'rish",
+      "download": "Yuklab olish",
+      "loading_preview": "Ko‘rib chiqish yuklanmoqda...",
+      "docx_legacy_unsupported": "Eski .doc formatidagi fayllarni ko‘rib bo‘lmaydi. Hujjatni ko‘rish uchun yuklab oling.",
+      "docx_render_failed": "Ushbu hujjatni ko‘rib bo‘lmadi. Baribir yuklab olishingiz mumkin.",
+      "sign_in_required": "To‘liq huquqiy hujjatni ko‘rish uchun tizimga kiring.",
+      "doc_load_failed": "Ushbu hujjatni yuklab bo‘lmadi.",
+      "load_previous": "Oldingisini yuklash",
+      "load_more": "Yana yuklash",
+      "from_web": "Internetdan — tasdiqlangan huquqiy manba emas",
+      "open_source": "Manbani ochish",
+      "no_title": "Nomsiz hujjat",
+      "sign_in_button": "Tizimga kirish"
     },
     "wizard": {
       "title": "Shartnoma yaratish",
@@ -378,7 +419,13 @@
       "download": "Yuklab olish",
       "refine_in_chat": "Chatda tahrirlash",
       "regenerate": "Qayta yaratish",
-      "new_document": "Yangi hujjat"
+      "new_document": "Yangi hujjat",
+      "open_sidebar": "Yon panelni ochish",
+      "format_label": "Hujjat formati",
+      "format_docx": "Word (.docx)",
+      "format_pdf": "PDF",
+      "word_document": "Word hujjati",
+      "pdf_document": "PDF hujjati"
     },
     "prompts": {
       "draft_custom_contract": "Yangi maxsus shartnoma tuzmoqchiman. Iltimos, loyihani tuzish jarayonida menga yo'l-yo'riq ko'rsatish uchun savollar bering.",
@@ -398,7 +445,8 @@
       "clause": "Band",
       "absent": "mavjud emas",
       "continue_in_chat": "Chatda davom etish",
-      "new_comparison": "Yangi taqqoslash"
+      "new_comparison": "Yangi taqqoslash",
+      "open_sidebar": "Yon panelni ochish"
     }
   },
   "ru": {
@@ -506,7 +554,12 @@
       "unlock_pro": "Откройте все преимущества лучшего ИИ — все в одном месте.",
       "activate_pro": "Активировать Pro.",
       "cite": "Источник",
-      "footer_disclaimer": "{chatbot_name} — это ИИ и может ошибаться. Проверяйте важную информацию."
+      "footer_disclaimer": "{chatbot_name} — это ИИ и может ошибаться. Проверяйте важную информацию.",
+      "web_search_toggle": "Веб-поиск",
+      "web_search_toggle_on": "Веб-поиск включен — {chatbot_name} может искать актуальную информацию в интернете.",
+      "web_search_toggle_off": "Включите веб-поиск, чтобы {chatbot_name} мог находить актуальную информацию.",
+      "web_search_guest_disabled": "Войдите в систему, чтобы включить веб-поиск.",
+      "from_the_web": "Из интернета"
     },
     "sidebar": {
       "new_consultation": "Новый чат",
@@ -556,7 +609,19 @@
       "connect": "Подключить"
     },
     "insight": {
-      "view_on_lex": "Смотреть на Lex.uz"
+      "view_on_lex": "Смотреть на Lex.uz",
+      "download": "Скачать",
+      "loading_preview": "Загрузка предпросмотра...",
+      "docx_legacy_unsupported": "Старые файлы .doc нельзя предпросмотреть. Скачайте документ, чтобы открыть его.",
+      "docx_render_failed": "Не удалось предпросмотреть документ. Вы всё ещё можете его скачать.",
+      "sign_in_required": "Войдите, чтобы увидеть полный текст документа.",
+      "doc_load_failed": "Не удалось загрузить документ.",
+      "load_previous": "Загрузить предыдущие",
+      "load_more": "Загрузить ещё",
+      "from_web": "Из интернета — не входит в проверенный правовой корпус",
+      "open_source": "Открыть источник",
+      "no_title": "Документ без названия",
+      "sign_in_button": "Войти"
     },
     "wizard": {
       "title": "Создание договора",
@@ -579,7 +644,13 @@
       "download": "Скачать",
       "refine_in_chat": "Уточнить в чате",
       "regenerate": "Создать заново",
-      "new_document": "Новый документ"
+      "new_document": "Новый документ",
+      "open_sidebar": "Открыть боковую панель",
+      "format_label": "Формат документа",
+      "format_docx": "Word (.docx)",
+      "format_pdf": "PDF",
+      "word_document": "Документ Word",
+      "pdf_document": "Документ PDF"
     },
     "prompts": {
       "draft_custom_contract": "Я хочу составить новый индивидуальный договор. Пожалуйста, задавайте мне вопросы, чтобы провести через процесс составления.",
@@ -599,7 +670,8 @@
       "clause": "Пункт",
       "absent": "отсутствует",
       "continue_in_chat": "Продолжить в чате",
-      "new_comparison": "Новое сравнение"
+      "new_comparison": "Новое сравнение",
+      "open_sidebar": "Открыть боковую панель"
     }
   }
 }

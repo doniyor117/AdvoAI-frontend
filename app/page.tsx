@@ -1,7 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useChatManager } from '@/hooks/useChatManager';
+import { useSessions } from '@/hooks/useSessions';
+import { useAuth } from '@/contexts/AuthContext';
+import { syncGuestChatOnLogin } from '@/lib/migrateGuestChat';
 import { Sidebar } from '@/components/Sidebar';
 import { ChatArea } from '@/components/ChatArea';
 import { InsightPanel } from '@/components/InsightPanel';
@@ -12,6 +16,35 @@ import { X, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
 
 function AppContent() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { refreshSessions } = useSessions();
+  const hasSyncedGuestChatRef = useRef(false);
+
+  // Every successful auth path (login, signup, and the Google-consent flow)
+  // eventually lands here on '/'. Running the guest-chat migration from this
+  // single spot — rather than duplicating it in each auth page — means none
+  // of them can forget to call it. Guard with a ref so it fires exactly once
+  // per sign-in, not on every re-render while isAuthenticated stays true.
+  useEffect(() => {
+    if (isAuthLoading || !isAuthenticated || hasSyncedGuestChatRef.current) return;
+    hasSyncedGuestChatRef.current = true;
+
+    let cancelled = false;
+    (async () => {
+      const destination = await syncGuestChatOnLogin();
+      if (cancelled) return;
+      if (destination.startsWith('/chat/')) {
+        refreshSessions();
+        router.push(destination);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthLoading, isAuthenticated, router, refreshSessions]);
+
   const {
     messages,
     inputValue,
@@ -36,7 +69,9 @@ function AppContent() {
     uploadFile,
     removeAttachment,
     quotedText,
-    setQuotedText
+    setQuotedText,
+    useWebSearch,
+    setUseWebSearch
   } = useChatManager();
 
   const { settings } = usePublicSettings();
@@ -111,6 +146,8 @@ function AppContent() {
           quotedText={quotedText}
           setQuotedText={setQuotedText}
           sendBlockedReason={sendBlockedReason}
+          useWebSearch={useWebSearch}
+          setUseWebSearch={setUseWebSearch}
         />
       )}
 

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, FileSignature, Briefcase, Home, Shield, ChevronRight, Loader2, Download, MessageSquare, RefreshCw } from 'lucide-react';
+import { ArrowLeft, FileSignature, Briefcase, Home, Shield, ChevronRight, Loader2, Download, MessageSquare, RefreshCw, Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { authFetch, safeJson } from '@/lib/authFetch';
@@ -76,14 +76,18 @@ type DraftResult = {
   display_name: string;
   s3_key: string;
   chat_note: string;
+  mime_type?: string;
 };
 
-export function ContractWizardView({ onBack }: ContractWizardViewProps) {
+const PDF_MIME_TYPE = 'application/pdf';
+
+export function ContractWizardView({ isSidebarOpen, setIsSidebarOpen, onBack }: ContractWizardViewProps) {
   const { t } = useLanguage();
   const router = useRouter();
 
   const [selected, setSelected] = useState<TemplateDef | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [format, setFormat] = useState<'docx' | 'pdf'>('docx');
   const [isDrafting, setIsDrafting] = useState(false);
   const [result, setResult] = useState<DraftResult | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
@@ -121,6 +125,7 @@ export function ContractWizardView({ onBack }: ContractWizardViewProps) {
           session_id: regenerate ? result?.session_id : undefined,
           language: typeof window !== 'undefined'
             ? localStorage.getItem('advoai_lang') || 'uz' : 'uz',
+          format,
         }),
       });
       if (!res.ok) {
@@ -149,6 +154,16 @@ export function ContractWizardView({ onBack }: ContractWizardViewProps) {
     <div className="flex-1 flex flex-col bg-[#fafafa] dark:bg-[#0a0a0a] h-full relative transition-all duration-300">
       <header className="flex-none h-14 border-b border-gray-200/50 dark:border-[#2A2A2A] bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-xl flex items-center justify-between px-4 z-20">
         <div className="flex items-center gap-3">
+          {!isSidebarOpen && (
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-1.5 text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors flex items-center gap-2 active:scale-95 flex-shrink-0 md:hidden"
+              title={tr('wizard.open_sidebar', 'Open sidebar')}
+              aria-label={tr('wizard.open_sidebar', 'Open sidebar')}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
           <button
             onClick={() => (selected && !result ? setSelected(null) : onBack())}
             className="p-2 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-gray-600 dark:text-gray-400"
@@ -184,13 +199,19 @@ export function ContractWizardView({ onBack }: ContractWizardViewProps) {
 
               <div className="flex items-center gap-4 p-5 rounded-2xl border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#111111] shadow-sm">
                 <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[11px] font-extrabold text-blue-600 dark:text-blue-400">DOCX</span>
+                  <span className="text-[11px] font-extrabold text-blue-600 dark:text-blue-400">
+                    {result.mime_type === PDF_MIME_TYPE ? 'PDF' : 'DOCX'}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-outfit font-medium text-gray-900 dark:text-white truncate">
                     {result.display_name}
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Word document</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {result.mime_type === PDF_MIME_TYPE
+                      ? tr('wizard.pdf_document', 'PDF document')
+                      : tr('wizard.word_document', 'Word document')}
+                  </p>
                 </div>
                 {downloadUrl ? (
                   <a
@@ -278,6 +299,28 @@ export function ContractWizardView({ onBack }: ContractWizardViewProps) {
                     )}
                   </div>
                 ))}
+              </div>
+
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 font-outfit">
+                  {tr('wizard.format_label', 'Document format')}
+                </span>
+                <div className="flex gap-2">
+                  {(['docx', 'pdf'] as const).map(f => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setFormat(f)}
+                      className={`px-4 py-2 rounded-xl text-sm font-outfit font-medium border transition-colors ${
+                        format === f
+                          ? 'bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400'
+                          : 'bg-white dark:bg-[#111111] border-gray-200 dark:border-[#2A2A2A] text-gray-600 dark:text-gray-400 hover:border-blue-500/50'
+                      }`}
+                    >
+                      {f === 'docx' ? tr('wizard.format_docx', 'Word (.docx)') : tr('wizard.format_pdf', 'PDF')}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {error && <p className="text-center text-sm text-red-600 dark:text-red-400">{error}</p>}

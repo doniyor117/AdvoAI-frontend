@@ -14,10 +14,10 @@ export type ChatSession = {
 
 // ── localStorage fallback for guest users ───────────────────
 
-const GUEST_SESSIONS_KEY = 'advoai_guest_sessions';
+export const GUEST_SESSIONS_KEY = 'advoai_guest_sessions';
 const SESSIONS_EVENT = 'advoai_sessions_updated';
 
-function loadGuestSessions(): ChatSession[] {
+export function loadGuestSessions(): ChatSession[] {
   if (typeof window === 'undefined') return [];
   try {
     const saved = localStorage.getItem(GUEST_SESSIONS_KEY);
@@ -27,7 +27,7 @@ function loadGuestSessions(): ChatSession[] {
   }
 }
 
-function saveGuestSessions(sessions: ChatSession[]) {
+export function saveGuestSessions(sessions: ChatSession[]) {
   localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(sessions));
   window.dispatchEvent(new Event(SESSIONS_EVENT));
 }
@@ -37,8 +37,11 @@ function saveGuestSessions(sessions: ChatSession[]) {
 export function useSessions() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth();
   const isFetchingRef = useRef(false);
+  // Set when a refresh is requested while a fetch is already in flight, so that
+  // request isn't silently dropped — the in-flight fetch re-runs itself once done.
+  const refetchQueuedRef = useRef(false);
 
   // ── Convert server session → ChatSession shape ──────────
   const mapServerSession = useCallback((s: Record<string, unknown>): ChatSession => ({
@@ -51,7 +54,14 @@ export function useSessions() {
 
   // ── Fetch sessions from API (auth users) ────────────────
   const fetchSessions = useCallback(async () => {
-    if (!isAuthenticated || isFetchingRef.current) return;
+    if (!isAuthenticated) return;
+    if (isFetchingRef.current) {
+      // A fetch is already running — remember that a fresh one was requested
+      // instead of dropping it, so callers (e.g. a post-import refresh) can
+      // rely on their request eventually being honored.
+      refetchQueuedRef.current = true;
+      return;
+    }
     isFetchingRef.current = true;
     try {
       const res = await authFetch('/api/sessions');
@@ -65,18 +75,28 @@ export function useSessions() {
     } finally {
       isFetchingRef.current = false;
       setIsHydrated(true);
+      if (refetchQueuedRef.current) {
+        refetchQueuedRef.current = false;
+        fetchSessions();
+      }
     }
   }, [isAuthenticated, mapServerSession]);
 
   // ── Init: load from API (auth) or localStorage (guest) ──
+  // Wait for the auth check to resolve before deciding which branch to take.
+  // Deciding early (while isLoading is still true) meant isAuthenticated read
+  // as false during that window, so this always took the guest branch and
+  // marked itself hydrated — producing a flash of empty/guest sessions before
+  // the real authenticated fetch landed a moment later.
   useEffect(() => {
+    if (isAuthLoading) return;
     if (isAuthenticated) {
       fetchSessions();
     } else {
       setSessions(loadGuestSessions());
       setIsHydrated(true);
     }
-  }, [isAuthenticated, fetchSessions]);
+  }, [isAuthLoading, isAuthenticated, fetchSessions]);
 
   // Guest localStorage sync across tabs
   useEffect(() => {

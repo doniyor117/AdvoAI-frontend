@@ -6,9 +6,14 @@ import { authFetch, safeJson } from '@/lib/authFetch';
 
 export type Citation = {
   id: string;
+  part_id?: string;
   title: string;
   text: string;
   source_url?: string;
+  /** 'corpus' = vetted legal document, resolvable via /api/documents/{id}/full.
+   *  'web' = a live web search result; has no corpus document and must open
+   *  `source_url` directly rather than being passed to the full-document endpoint. */
+  kind?: 'corpus' | 'web';
 };
 
 export type FileAttachment = {
@@ -89,6 +94,17 @@ export function useChatManager(chatId?: string) {
   const [quotedText, setQuotedText] = useState('');
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [activeAttachment, setActiveAttachment] = useState<FileAttachment | null>(null);
+  // Persisted across navigations — without this the toggle silently resets on every
+  // route change while the UI still shows it as on.
+  const [useWebSearch, setUseWebSearch] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('advoai_use_web_search') === 'true';
+  });
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('advoai_use_web_search', String(useWebSearch));
+    }
+  }, [useWebSearch]);
   const [isInsightOpen, setIsInsightOpen] = useState(false);
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -319,6 +335,7 @@ export function useChatManager(chatId?: string) {
     const body: Record<string, unknown> = {
       question,
       top_k: 5,
+      use_web_search: useWebSearch,
     };
 
     if (filesToAttach.length > 0) {
@@ -373,9 +390,11 @@ export function useChatManager(chatId?: string) {
     // Map backend citations (parent documents) to frontend Citation type
     const citations: Citation[] = (data.citations || []).map((c: Record<string, unknown>) => ({
       id: c.id as string,
+      part_id: c.part_id as string | undefined,
       title: (c.title as string) || 'Source',
       text: (c.text as string) || '',
       source_url: (c.source_url as string) || '#',
+      kind: (c.kind as 'corpus' | 'web') || 'corpus',
     }));
 
     return {
@@ -384,7 +403,7 @@ export function useChatManager(chatId?: string) {
       sources: citations,
       session_id: data.session_id || null,
     };
-  }, []);
+  }, [useWebSearch]);
 
   const handleSendMessage = useCallback((text: string) => {
     const trimmed = text.trim();
@@ -789,6 +808,8 @@ function getFileValidationError(file: File): string | null {
     setMessages,
     inputValue,
     setInputValue,
+    useWebSearch,
+    setUseWebSearch,
     attachments,
     uploadFile,
     removeAttachment,

@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import withSerwistInit from '@serwist/next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -34,16 +35,14 @@ const nextConfig: NextConfig = {
   },
 };
 
-const withPWA = require('@ducanh2912/next-pwa').default({
-  dest: 'public',
-  cacheOnFrontEndNav: false,
-  aggressiveFrontEndNavCaching: false,
+const withSerwist = withSerwistInit({
+  swSrc: 'app/sw.ts',
+  swDest: 'public/sw.js',
+  // No aggressive front-end navigation caching (equivalent intent to the
+  // old plugin's `cacheOnFrontEndNav: false` / `aggressiveFrontEndNavCaching: false`).
+  cacheOnNavigation: false,
   reloadOnOnline: true,
-  swcMinify: true,
   disable: process.env.NODE_ENV === 'development',
-  workboxOptions: {
-    disableDevLogs: true,
-  },
 });
 
-export default withPWA(nextConfig);
+export default withSerwist(nextConfig);

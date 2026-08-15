@@ -76,7 +76,9 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     uploadFile,
     removeAttachment,
     quotedText,
-    setQuotedText
+    setQuotedText,
+    useWebSearch,
+    setUseWebSearch
   } = useChatManager(resolvedParams.id);
 
   return (
@@ -124,6 +126,8 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           quotedText={quotedText}
           setQuotedText={setQuotedText}
           sendBlockedReason={sendBlockedReason}
+          useWebSearch={useWebSearch}
+          setUseWebSearch={setUseWebSearch}
         />
       )}
 

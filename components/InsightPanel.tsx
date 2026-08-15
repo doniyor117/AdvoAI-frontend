@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, ChevronRight, X } from 'lucide-react';
+import { FileText, ChevronRight, X, Download, ExternalLink, AlertCircle, LogIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import Link from 'next/link';
 import { Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { authFetch } from '@/lib/authFetch';
+import { authFetch, safeJson } from '@/lib/authFetch';
+import { DocxViewer } from './DocxViewer';
 
 interface InsightPanelProps {
   isOpen: boolean;
@@ -16,12 +18,98 @@ interface InsightPanelProps {
   onClose: () => void;
 }
 
+// One accent, everywhere it appears: the currently-cited passage, and its position
+// on the minimap. Nothing else in this panel is colored.
+const ACCENT = '#D99B26';
+
+type PartMeta = { id: string; part_title: string; part_index: number; char_length: number };
+type Part = { id: string; part_title: string; text: string; part_index: number };
+type DocMeta = {
+  id: string;
+  source_doc_id: string;
+  title: string;
+  act_type: string;
+  doc_date: string | null;
+  source_url: string;
+  category: string;
+};
+
+const PAGE_LIMIT = 30;
+
+function isDocxMime(mime?: string, name?: string): boolean {
+  if (mime && (mime.includes('wordprocessingml') || mime === 'application/msword')) return true;
+  return /\.docx?$/i.test(name || '');
+}
+
+// ── Text matching for the in-part highlight ──────────────────
+// Builds a whitespace/quote-tolerant regex from the citation snippet and matches it
+// directly against the ORIGINAL part text — no normalized-index-to-original-index
+// mapping needed, since the regex itself tolerates the variation.
+function buildHighlightRegex(citationText: string): RegExp | null {
+  const cleaned = (citationText || '').replace(/[ ]/g, ' ').trim();
+  if (cleaned.length < 8) return null;
+  const words = cleaned.slice(0, 400).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return null;
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = words
+    .map((w) => {
+      let esc = escape(w);
+      esc = esc.replace(/['‘’]/g, "['‘’]");
+      esc = esc.replace(/["“”]/g, '["“”]');
+      return esc;
+    })
+    .join('\\s+');
+  try {
+    return new RegExp(pattern, 'i');
+  } catch {
+    return null;
+  }
+}
+
+function HighlightedPartText({ text, citationText }: { text: string; citationText: string }) {
+  const match = useMemo(() => {
+    const re = buildHighlightRegex(citationText);
+    if (!re) return null;
+    const m = re.exec(text);
+    return m ? { index: m.index, length: m[0].length } : null;
+  }, [text, citationText]);
+
+  if (!match) {
+    return (
+      <div className="prose prose-sm md:prose-base prose-slate dark:prose-invert prose-headings:font-semibold max-w-none text-slate-800 dark:text-[#E6EDF3] leading-relaxed">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+      </div>
+    );
+  }
+
+  const before = text.slice(0, match.index);
+  const highlighted = text.slice(match.index, match.index + match.length);
+  const after = text.slice(match.index + match.length);
+
+  return (
+    <div className="whitespace-pre-wrap text-sm md:text-base text-slate-800 dark:text-[#E6EDF3] leading-relaxed font-sans">
+      {before}
+      <mark
+        className="rounded px-0.5 -mx-0.5"
+        style={{ backgroundColor: `${ACCENT}33`, color: 'inherit', boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}
+      >
+        {highlighted}
+      </mark>
+      {after}
+    </div>
+  );
+}
+
 export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose }: InsightPanelProps) {
   const { t } = useLanguage();
   const panelRef = useRef<HTMLElement>(null);
   const isDragging = useRef(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const partNodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // Resolve the preview URL: local blob URL → presigned R2 URL → null
+  const isWebCitation = activeCitation?.kind === 'web';
+
+  // ── Attachment preview: local blob → presigned R2 URL ───────
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   useEffect(() => {
@@ -51,6 +139,161 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAttachment?.local_url, activeAttachment?.s3_key]);
 
+  // ── Full-document citation view ──────────────────────────────
+  const [docMeta, setDocMeta] = useState<DocMeta | null>(null);
+  const [docPartsMeta, setDocPartsMeta] = useState<PartMeta[] | null>(null);
+  const [docParts, setDocParts] = useState<Part[]>([]);
+  const [docOffset, setDocOffset] = useState(0);
+  const [docTotalParts, setDocTotalParts] = useState(0);
+  const [docLoading, setDocLoading] = useState(false);
+  const [docPaging, setDocPaging] = useState(false);
+  const [docError, setDocError] = useState<'auth' | 'not_found' | 'error' | null>(null);
+  const [targetPartId, setTargetPartId] = useState<string | null>(null);
+
+  const citationKey = activeCitation?.id;
+  const citationPartId = activeCitation?.part_id;
+
+  useEffect(() => {
+    if (!isOpen || !citationKey || isWebCitation) return;
+    let cancelled = false;
+    partNodeRefs.current.clear();
+    setDocLoading(true);
+    setDocError(null);
+    setDocMeta(null);
+    setDocPartsMeta(null);
+    setDocParts([]);
+    setTargetPartId(null);
+
+    (async () => {
+      try {
+        const metaRes = await authFetch(`/api/documents/${encodeURIComponent(citationKey)}/full/meta`);
+        if (metaRes.status === 401) { if (!cancelled) setDocError('auth'); return; }
+        if (metaRes.status === 404) { if (!cancelled) setDocError('not_found'); return; }
+        if (!metaRes.ok) { if (!cancelled) setDocError('error'); return; }
+        const meta = await safeJson(metaRes);
+        if (cancelled) return;
+
+        const parts: PartMeta[] = meta.parts || [];
+        const targetIndex = citationPartId
+          ? parts.findIndex((p) => p.id === citationPartId)
+          : -1;
+        const offset = targetIndex >= 0 ? Math.max(0, targetIndex - Math.floor(PAGE_LIMIT / 2)) : 0;
+
+        const pageRes = await authFetch(
+          `/api/documents/${encodeURIComponent(citationKey)}/full?offset=${offset}&limit=${PAGE_LIMIT}`
+        );
+        if (!pageRes.ok) { if (!cancelled) setDocError('error'); return; }
+        const page = await safeJson(pageRes);
+        if (cancelled) return;
+
+        setDocMeta(meta);
+        setDocPartsMeta(parts);
+        setDocTotalParts(meta.total_parts ?? page.total_parts ?? 0);
+        setDocParts(page.parts || []);
+        setDocOffset(page.offset ?? offset);
+        setTargetPartId(citationPartId || (page.parts?.[0]?.id ?? null));
+      } catch {
+        if (!cancelled) setDocError('error');
+      } finally {
+        if (!cancelled) setDocLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  // Refetch every time the panel reopens (even with the same citation) — simplest
+  // correct fix for "reopening the same citation must land in the same place",
+  // and cheap: the endpoint carries a 60s Cache-Control.
+  }, [citationKey, citationPartId, isWebCitation, isOpen]);
+
+  // Scroll the target part into view once its node is mounted.
+  useEffect(() => {
+    if (!targetPartId) return;
+    const node = partNodeRefs.current.get(targetPartId);
+    if (node) {
+      node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, [targetPartId, docParts]);
+
+  const registerPartRef = useCallback((id: string, node: HTMLDivElement | null) => {
+    if (node) partNodeRefs.current.set(id, node);
+    else partNodeRefs.current.delete(id);
+  }, []);
+
+  const loadPrevious = useCallback(async () => {
+    if (!citationKey || docOffset <= 0 || docPaging) return;
+    setDocPaging(true);
+    try {
+      const newOffset = Math.max(0, docOffset - PAGE_LIMIT);
+      const res = await authFetch(
+        `/api/documents/${encodeURIComponent(citationKey)}/full?offset=${newOffset}&limit=${docOffset - newOffset}`
+      );
+      if (res.ok) {
+        const page = await safeJson(res);
+        setDocParts(prev => [...(page.parts || []), ...prev]);
+        setDocOffset(newOffset);
+      }
+    } finally {
+      setDocPaging(false);
+    }
+  }, [citationKey, docOffset, docPaging]);
+
+  const loadMore = useCallback(async () => {
+    if (!citationKey || docPaging) return;
+    const nextOffset = docOffset + docParts.length;
+    if (nextOffset >= docTotalParts) return;
+    setDocPaging(true);
+    try {
+      const res = await authFetch(
+        `/api/documents/${encodeURIComponent(citationKey)}/full?offset=${nextOffset}&limit=${PAGE_LIMIT}`
+      );
+      if (res.ok) {
+        const page = await safeJson(res);
+        setDocParts(prev => [...prev, ...(page.parts || [])]);
+      }
+    } finally {
+      setDocPaging(false);
+    }
+  }, [citationKey, docOffset, docParts.length, docTotalParts, docPaging]);
+
+  const jumpToPart = useCallback(async (part: PartMeta) => {
+    if (!citationKey) return;
+    if (docParts.some(p => p.id === part.id)) {
+      setTargetPartId(part.id);
+      const node = partNodeRefs.current.get(part.id);
+      node?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    setDocLoading(true);
+    try {
+      const offset = Math.max(0, part.part_index - Math.floor(PAGE_LIMIT / 2));
+      const res = await authFetch(
+        `/api/documents/${encodeURIComponent(citationKey)}/full?offset=${offset}&limit=${PAGE_LIMIT}`
+      );
+      if (res.ok) {
+        const page = await safeJson(res);
+        partNodeRefs.current.clear();
+        setDocParts(page.parts || []);
+        setDocOffset(page.offset ?? offset);
+        setTargetPartId(part.id);
+      }
+    } finally {
+      setDocLoading(false);
+    }
+  }, [citationKey, docParts]);
+
+  // ── Minimap geometry: proportional to actual content length, not part count ──
+  const minimapLayout = useMemo(() => {
+    if (!docPartsMeta || docPartsMeta.length === 0) return [];
+    const totalChars = docPartsMeta.reduce((sum, p) => sum + (p.char_length || 1), 0) || 1;
+    let cursor = 0;
+    return docPartsMeta.map((p) => {
+      const height = (p.char_length || 1) / totalChars;
+      const top = cursor;
+      cursor += height;
+      return { part: p, top, height };
+    });
+  }, [docPartsMeta]);
+
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
     isDragging.current = true;
@@ -65,7 +308,7 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
       if (newWidth < 320) newWidth = 320;
       const maxW = window.innerWidth * 0.5;
       if (newWidth > maxW) newWidth = maxW;
-      
+
       if (panelRef.current) {
         panelRef.current.style.setProperty('--panel-width', `${newWidth}px`);
       }
@@ -84,8 +327,23 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      // If the panel unmounts mid-drag, don't leave selection disabled site-wide.
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
   }, []);
+
+  const headerTitle = activeAttachment
+    ? activeAttachment.display_name
+    : (docMeta?.title || activeCitation?.title || t('insight.no_title'));
+
+  const headerEyebrow = !activeAttachment && docMeta
+    ? [docMeta.act_type, docMeta.doc_date].filter(Boolean).join(' · ')
+    : null;
+
+  const sourceHref = activeAttachment
+    ? null
+    : (docMeta?.source_url || activeCitation?.source_url || (activeCitation?.id ? `https://lex.uz/docs/${activeCitation.id}` : null));
 
   return (
     <AnimatePresence initial={false}>
@@ -107,109 +365,234 @@ export function InsightPanel({ isOpen, activeCitation, activeAttachment, onClose
             exit={{ x: '100%' }}
             transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
             className="fixed md:relative right-0 top-0 bottom-0 z-50 bg-[#FDFBF7] dark:bg-sidebar border-l border-slate-200 dark:border-border flex flex-col shadow-2xl md:shadow-none overflow-hidden transition-colors duration-200 flex-shrink-0 w-full md:w-[var(--panel-width)] md:max-w-[50vw]"
-            style={{ '--panel-width': `384px` } as React.CSSProperties}
+            style={{ '--panel-width': `420px` } as React.CSSProperties}
           >
             {/* Draggable Handle */}
-            <div 
+            <div
               onMouseDown={startDrag}
               className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-primary/20 active:bg-primary/40 z-[60] transition-colors hidden md:block"
             />
             <div className="flex flex-col h-full min-w-[320px] w-full relative">
-              <div className="h-14 border-b border-slate-200 dark:border-border flex items-center justify-between px-4 bg-[#FDFBF7]/80 dark:bg-sidebar/80 backdrop-blur-md z-10 sticky top-0 flex-shrink-0 transform-gpu">
-                <div className="flex items-center gap-2 text-primary font-medium text-sm">
-                  <FileText className="w-4 h-4" />
-                  <span className="truncate max-w-[240px] md:max-w-[280px]">
-                    {activeAttachment ? activeAttachment.display_name : activeCitation?.title}
-                  </span>
+              {/* ── Header: one line, one action group ── */}
+              <div className="min-h-14 border-b border-slate-200 dark:border-border flex items-center justify-between gap-3 px-4 py-2.5 bg-[#FDFBF7]/80 dark:bg-sidebar/80 backdrop-blur-md z-10 sticky top-0 flex-shrink-0 transform-gpu">
+                <div className="flex flex-col min-w-0 flex-1">
+                  {headerEyebrow && (
+                    <span className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 truncate">
+                      {headerEyebrow}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2 text-foreground font-medium text-sm min-w-0">
+                    <FileText className="w-4 h-4 flex-shrink-0 text-slate-400 dark:text-slate-500" />
+                    <span className="truncate">{headerTitle}</span>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
-                  aria-label="Close insight panel"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {activeAttachment && previewUrl && (
+                    <a
+                      href={previewUrl}
+                      download={activeAttachment.display_name}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
+                      aria-label={t('insight.download')}
+                      title={t('insight.download')}
+                    >
+                      <Download className="w-4 h-4" />
+                    </a>
+                  )}
+                  {sourceHref && (
+                    <a
+                      href={sourceHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
+                      aria-label={t('insight.open_source')}
+                      title={t('insight.open_source')}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
+                    aria-label="Close insight panel"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 bg-[#FDFBF7] dark:bg-sidebar z-0 flex flex-col">
-                {activeAttachment ? (
-                  isLoadingUrl ? (
-                    <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400">
-                      <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-                      <p className="text-sm">Loading preview...</p>
-                    </div>
-                  ) : activeAttachment.mime_type?.startsWith('image/') ? (
-                    previewUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={previewUrl}
-                        alt={activeAttachment.display_name}
-                        className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
-                      />
+              <div className="flex-1 min-h-0 flex">
+                {/* ── Main content ── */}
+                <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6 bg-[#FDFBF7] dark:bg-sidebar z-0 flex flex-col">
+                  {activeAttachment ? (
+                    isLoadingUrl ? (
+                      <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400">
+                        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                        <p className="text-sm">{t('insight.loading_preview')}</p>
+                      </div>
+                    ) : activeAttachment.mime_type?.startsWith('image/') ? (
+                      previewUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={previewUrl}
+                          alt={activeAttachment.display_name}
+                          className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
+                          <FileText className="w-12 h-12 opacity-30" />
+                          <p className="text-sm">{activeAttachment.display_name}</p>
+                        </div>
+                      )
+                    ) : previewUrl && isDocxMime(activeAttachment.mime_type, activeAttachment.display_name) ? (
+                      <div className="flex flex-col w-full h-full min-h-[50vh]">
+                        <DocxViewer url={previewUrl} displayName={activeAttachment.display_name} />
+                      </div>
+                    ) : previewUrl ? (
+                      <div className="flex flex-col w-full h-full min-h-[50vh]">
+                        <iframe
+                          src={previewUrl}
+                          className="w-full h-full flex-1 border border-slate-200 dark:border-white/10 rounded-md bg-white dark:bg-black/20"
+                          title={activeAttachment.display_name}
+                          onError={(e) => { (e.currentTarget as HTMLIFrameElement).style.display = 'none'; }}
+                        />
+                      </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
                         <FileText className="w-12 h-12 opacity-30" />
                         <p className="text-sm">{activeAttachment.display_name}</p>
-                        <p className="text-xs opacity-60">Image preview not available</p>
                       </div>
                     )
-                  ) : previewUrl ? (
-                    <div className="flex flex-col w-full h-full min-h-[50vh]">
-                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-white/5">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <div className="p-2 bg-white dark:bg-slate-800 rounded-md shadow-sm border border-slate-200 dark:border-white/5">
-                            <FileText className="w-6 h-6 text-primary flex-shrink-0" />
-                          </div>
-                          <div className="truncate">
-                            <p className="font-medium text-sm text-foreground truncate">{activeAttachment.display_name}</p>
-                            <p className="text-xs text-muted-foreground uppercase">{activeAttachment.display_name.split('.').pop() || 'FILE'}</p>
-                          </div>
-                        </div>
+                  ) : isWebCitation ? (
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>{t('insight.from_web')}</span>
+                      </div>
+                      <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                        {activeCitation?.text}
+                      </div>
+                    </div>
+                  ) : docLoading ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400 flex-1">
+                      <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                      <p className="text-sm">{t('insight.loading_preview')}</p>
+                    </div>
+                  ) : docError === 'auth' ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400 text-center flex-1">
+                      <AlertCircle className="w-10 h-10 opacity-40" />
+                      <p className="text-sm max-w-xs">{t('insight.sign_in_required')}</p>
+                      <Link
+                        href="/login"
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        {t('insight.sign_in_button')}
+                      </Link>
+                    </div>
+                  ) : docError ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400 text-center flex-1">
+                      <AlertCircle className="w-10 h-10 opacity-40" />
+                      <p className="text-sm max-w-xs">{t('insight.doc_load_failed')}</p>
+                      {sourceHref && (
                         <a
-                          href={previewUrl}
+                          href={sourceHref}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors whitespace-nowrap flex-shrink-0 shadow-sm"
+                          className="flex items-center gap-2 px-4 py-2 bg-popover border border-border rounded-lg text-sm font-medium text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                         >
-                          Download / Open
+                          {t('insight.view_on_lex')}
+                          <ChevronRight className="w-4 h-4" />
                         </a>
-                      </div>
-                      <iframe
-                        src={previewUrl}
-                        className="w-full h-full flex-1 border border-slate-200 dark:border-white/10 rounded-md bg-white dark:bg-black/20"
-                        title={activeAttachment.display_name}
-                      />
+                      )}
+                    </div>
+                  ) : docParts.length > 0 ? (
+                    <div className="flex flex-col gap-1">
+                      {docOffset > 0 && (
+                        <button
+                          onClick={loadPrevious}
+                          disabled={docPaging}
+                          className="self-center mb-2 px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-white/10 rounded-full transition-colors disabled:opacity-50"
+                        >
+                          {t('insight.load_previous')}
+                        </button>
+                      )}
+                      {docParts.map((part) => {
+                        const isPrimary = part.id === targetPartId;
+                        return (
+                          <div
+                            key={part.id}
+                            data-part-id={part.id}
+                            ref={(node) => registerPartRef(part.id, node)}
+                            className={`py-4 first:pt-0 border-l-2 pl-4 -ml-4 transition-colors ${
+                              isPrimary ? '' : 'border-transparent'
+                            }`}
+                            style={isPrimary ? { borderColor: ACCENT } : undefined}
+                          >
+                            {part.part_title && (
+                              <div className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-2">
+                                {part.part_title}
+                              </div>
+                            )}
+                            {isPrimary && activeCitation?.text ? (
+                              <HighlightedPartText text={part.text} citationText={activeCitation.text} />
+                            ) : (
+                              <div className="prose prose-sm md:prose-base prose-slate dark:prose-invert prose-headings:font-semibold max-w-none text-slate-800 dark:text-[#E6EDF3] leading-relaxed">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{part.text}</ReactMarkdown>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {docOffset + docParts.length < docTotalParts && (
+                        <button
+                          onClick={loadMore}
+                          disabled={docPaging}
+                          className="self-center mt-2 px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-white/10 rounded-full transition-colors disabled:opacity-50"
+                        >
+                          {t('insight.load_more')}
+                        </button>
+                      )}
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
-                      <FileText className="w-12 h-12 opacity-30" />
-                      <p className="text-sm">{activeAttachment.display_name}</p>
-                      <p className="text-xs opacity-60">Preview not available</p>
+                    <div className="prose prose-sm md:prose-base prose-slate dark:prose-invert prose-headings:font-semibold max-w-none text-slate-800 dark:text-[#E6EDF3] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeCitation?.text || ''}</ReactMarkdown>
                     </div>
-                  )
-                ) : (
-                  <div className="prose prose-sm md:prose-base prose-slate dark:prose-invert prose-headings:font-semibold max-w-none text-slate-800 dark:text-[#E6EDF3] leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {activeCitation?.text || ''}
-                    </ReactMarkdown>
+                  )}
+                </div>
+
+                {/* ── Minimap rail: click to jump. Proportional to content length. ── */}
+                {!activeAttachment && !isWebCitation && minimapLayout.length > 1 && (
+                  <div className="w-3 flex-shrink-0 relative my-3 mr-2">
+                    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-slate-200 dark:bg-white/10" />
+                    {minimapLayout.map(({ part, top, height }) => {
+                      const isActive = part.id === targetPartId;
+                      return (
+                        <button
+                          key={part.id}
+                          onClick={() => jumpToPart(part)}
+                          title={part.part_title}
+                          className="absolute left-1/2 -translate-x-1/2 w-2.5 rounded-full transition-all hover:w-3"
+                          style={{
+                            top: `${top * 100}%`,
+                            height: `${Math.max(height * 100, 0.6)}%`,
+                            minHeight: '3px',
+                            backgroundColor: isActive ? ACCENT : undefined,
+                          }}
+                        >
+                          <span
+                            className={`block w-full h-full rounded-full ${isActive ? '' : 'bg-slate-300 dark:bg-white/15'}`}
+                            style={isActive ? { backgroundColor: ACCENT } : undefined}
+                          />
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-
-              {!activeAttachment && activeCitation && (
-                <div className="p-4 border-t border-slate-200 dark:border-border bg-[#FDFBF7] dark:bg-sidebar flex-shrink-0 z-10">
-                  <a
-                    href={activeCitation.source_url || `https://lex.uz/docs/${activeCitation.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-2 bg-popover border border-border rounded-lg text-sm font-medium text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                  >
-                    {t('insight.view_on_lex')}
-                    <ChevronRight className="w-4 h-4" />
-                  </a>
-                </div>
-              )}
             </div>
           </motion.aside>
         </>

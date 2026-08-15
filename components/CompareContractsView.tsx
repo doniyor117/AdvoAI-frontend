@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { FileText, ArrowLeft, Plus, CheckCircle2, ArrowRightLeft, X, AlertTriangle, MessageSquare, Loader2 } from 'lucide-react';
+import { FileText, ArrowLeft, Plus, CheckCircle2, ArrowRightLeft, X, AlertTriangle, MessageSquare, Loader2, Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { authFetch, safeJson } from '@/lib/authFetch';
@@ -53,7 +53,7 @@ function StatusBadge({ status, severity }: { status: string; severity: string })
   return <AlertTriangle className={`w-4 h-4 ${color}`} aria-label={status} />;
 }
 
-export function CompareContractsView({ onBack }: CompareContractsViewProps) {
+export function CompareContractsView({ isSidebarOpen, setIsSidebarOpen, onBack }: CompareContractsViewProps) {
   const { t } = useLanguage();
   const router = useRouter();
 
@@ -158,6 +158,16 @@ export function CompareContractsView({ onBack }: CompareContractsViewProps) {
     <div className="flex-1 flex flex-col bg-[#fafafa] dark:bg-[#0a0a0a] h-full relative transition-all duration-300">
       <header className="flex-none h-14 border-b border-gray-200/50 dark:border-[#2A2A2A] bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-xl flex items-center justify-between px-4 z-20">
         <div className="flex items-center gap-3">
+          {!isSidebarOpen && (
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-1.5 text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors flex items-center gap-2 active:scale-95 flex-shrink-0 md:hidden"
+              title={tr('compare.open_sidebar', 'Open sidebar')}
+              aria-label={tr('compare.open_sidebar', 'Open sidebar')}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
           <button
             onClick={onBack}
             className="p-2 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-gray-600 dark:text-gray-400"

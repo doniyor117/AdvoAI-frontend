@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft, Quote } from 'lucide-react';
+import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft, Quote, Globe } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageBubble } from './MessageBubble';
@@ -33,6 +33,8 @@ interface ChatAreaProps {
   quotedText?: string;
   setQuotedText?: (val: string) => void;
   sendBlockedReason?: string | null;
+  useWebSearch?: boolean;
+  setUseWebSearch?: (val: boolean) => void;
 }
 
 
@@ -79,7 +81,9 @@ export function ChatArea({
   onAttachmentClick,
   quotedText = '',
   setQuotedText,
-  sendBlockedReason = null
+  sendBlockedReason = null,
+  useWebSearch = false,
+  setUseWebSearch
 }: ChatAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -93,7 +97,7 @@ export function ChatArea({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { deleteSession, updateSessionTitle, togglePinSession, sessions } = useSessions();
   const router = useRouter();
   const params = useParams();
@@ -412,14 +416,33 @@ export function ChatArea({
               e.target.value = ''; // Reset to allow same file re-upload
             }}
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95"
-            aria-label="Attach file"
-          >
-            <Paperclip className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95"
+              aria-label="Attach file"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+
+            {isAuthenticated && setUseWebSearch && (
+              <button
+                type="button"
+                onClick={() => setUseWebSearch(!useWebSearch)}
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors active:scale-95 ${
+                  useWebSearch
+                    ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground ring-1 ring-inset ring-primary/30'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
+                }`}
+                title={useWebSearch ? t('chat.web_search_toggle_on', { chatbot_name: t('chatbot_name') }) : t('chat.web_search_toggle_off', { chatbot_name: t('chatbot_name') })}
+                aria-label={t('chat.web_search_toggle')}
+                aria-pressed={useWebSearch}
+              >
+                <Globe className="w-5 h-5" />
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-3">
             <button
