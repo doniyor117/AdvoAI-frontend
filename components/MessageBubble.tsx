@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePresignedUrl } from '@/hooks/usePresignedUrl';
-import { authFetch } from '@/lib/authFetch';
+import { authFetch, downloadFile } from '@/lib/authFetch';
 
 /** A single attachment card — shows image thumbnail (local or from R2) or file-type card */
 /**
@@ -40,6 +40,7 @@ function GeneratedFileCard({ file }: { file: FileAttachment }) {
           download={file.display_name}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => { e.preventDefault(); downloadFile(url, file.display_name); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex-shrink-0"
         >
           <Download className="w-3.5 h-3.5" />

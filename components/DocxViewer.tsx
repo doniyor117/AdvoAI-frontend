@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileText, Download } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { downloadFile } from '@/lib/authFetch';
 
 interface DocxViewerProps {
   url: string;
@@ -88,6 +89,7 @@ export function DocxViewer({ url, displayName }: DocxViewerProps) {
           download={displayName}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => { e.preventDefault(); downloadFile(url, displayName); }}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
         >
           <Download className="w-3.5 h-3.5" />

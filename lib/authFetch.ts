@@ -48,6 +48,40 @@ export async function safeJson(res: Response): Promise<any> {
     return res.json();
 }
 
+// ── Forced download ──────────────────────────────────────────
+
+/**
+ * Forces a real "Save As" download instead of letting the browser navigate to
+ * and render the file inline. The HTML `download` attribute on an `<a>` is
+ * silently ignored by browsers when the URL is cross-origin — and R2
+ * presigned URLs always are — so a plain `<a href download>` just opens the
+ * file (rendering it inline for any content-type the browser knows how to
+ * display, e.g. `text/markdown`) instead of saving it. Fetching the bytes and
+ * downloading via a same-origin `blob:` URL sidesteps that restriction.
+ *
+ * Falls back to a plain navigation if the fetch itself fails (e.g. the
+ * bucket's CORS policy doesn't allow cross-origin reads), so this can only
+ * improve on the previous always-reachable behavior, never regress it.
+ */
+export async function downloadFile(url: string, filename: string): Promise<void> {
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Download fetch failed (${res.status})`);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+        console.warn('[downloadFile] Falling back to direct navigation:', err);
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+}
+
 // ── authFetch ────────────────────────────────────────────────
 
 export async function authFetch(
