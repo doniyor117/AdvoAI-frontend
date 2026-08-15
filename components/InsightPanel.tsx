@@ -298,18 +298,23 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
     }
   }, [citationKey, docParts]);
 
-  // ── Minimap geometry: proportional to actual content length, not part count ──
-  const minimapLayout = useMemo(() => {
-    if (!docPartsMeta || docPartsMeta.length === 0) return [];
+  // ── Minimap checkpoints: one pin per part actually cited, positioned at its
+  // midpoint through the document — proportional to real content length, not part
+  // count, so a three-line article and a 200-line chapter don't get equal weight.
+  const minimapCheckpoints = useMemo(() => {
+    if (!docPartsMeta || docPartsMeta.length === 0 || usedPartIds.size === 0) return [];
     const totalChars = docPartsMeta.reduce((sum, p) => sum + (p.char_length || 1), 0) || 1;
     let cursor = 0;
-    return docPartsMeta.map((p) => {
-      const height = (p.char_length || 1) / totalChars;
-      const top = cursor;
-      cursor += height;
-      return { part: p, top, height };
-    });
-  }, [docPartsMeta]);
+    const checkpoints: { part: PartMeta; top: number }[] = [];
+    for (const p of docPartsMeta) {
+      const span = (p.char_length || 1) / totalChars;
+      if (usedPartIds.has(p.id)) {
+        checkpoints.push({ part: p, top: cursor + span / 2 });
+      }
+      cursor += span;
+    }
+    return checkpoints;
+  }, [docPartsMeta, usedPartIds]);
 
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -572,30 +577,29 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
                   )}
                 </div>
 
-                {/* ── Minimap rail: one flag per part actually cited in this answer from
-                    this document, sized by real content length. The only jump control
-                    in the panel — native scroll only ever extends forward from here. ── */}
-                {!activeAttachment && !isWebCitation && minimapLayout.length > 1 && (
-                  <div className="w-3 flex-shrink-0 relative my-3 mr-2">
-                    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-slate-200 dark:bg-white/10" />
-                    {minimapLayout.map(({ part, top, height }) => {
+                {/* ── Scroll tape: a plain vertical line spanning the document, with one
+                    pinned checkpoint per part actually cited in this answer — not a
+                    dot-per-part track. The only jump control in the panel; native
+                    scroll only ever extends forward from here. ── */}
+                {!activeAttachment && !isWebCitation && minimapCheckpoints.length > 0 && (
+                  <div className="w-6 flex-shrink-0 relative my-4 mr-2">
+                    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[3px] rounded-full bg-slate-200/80 dark:bg-white/[0.08]" />
+                    {minimapCheckpoints.map(({ part, top }) => {
                       const isActive = part.id === targetPartId;
-                      const isUsed = usedPartIds.has(part.id);
                       return (
                         <button
                           key={part.id}
                           onClick={() => jumpToPart(part)}
                           title={part.part_title}
-                          className="absolute left-1/2 -translate-x-1/2 w-2.5 rounded-full transition-all hover:w-3"
-                          style={{
-                            top: `${top * 100}%`,
-                            height: `${Math.max(height * 100, 0.6)}%`,
-                            minHeight: '3px',
-                          }}
+                          className="group absolute left-1/2 -translate-x-1/2 -translate-y-1/2 p-1.5 -m-1.5"
+                          style={{ top: `${top * 100}%` }}
+                          aria-label={part.part_title}
                         >
                           <span
-                            className={`block w-full h-full rounded-full ${isUsed ? '' : 'bg-slate-300 dark:bg-white/15'}`}
-                            style={isUsed ? { backgroundColor: isActive ? ACCENT : `${ACCENT}80` } : undefined}
+                            className={`block rounded-full ring-2 ring-[#FDFBF7] dark:ring-sidebar shadow-sm transition-all ${
+                              isActive ? 'w-3 h-3' : 'w-2 h-2 group-hover:w-2.5 group-hover:h-2.5'
+                            }`}
+                            style={{ backgroundColor: isActive ? ACCENT : `${ACCENT}90` }}
                           />
                         </button>
                       );

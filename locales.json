@@ -109,7 +109,8 @@
       "web_search_toggle_on": "Web search is on — {chatbot_name} may search the web for up-to-date information.",
       "web_search_toggle_off": "Turn on web search so {chatbot_name} can look up up-to-date information.",
       "web_search_guest_disabled": "Sign in to enable web search.",
-      "from_the_web": "From the web"
+      "from_the_web": "From the web",
+      "sources_label": "Sources"
     },
     "sidebar": {
       "new_consultation": "New chat",
@@ -332,7 +333,8 @@
       "web_search_toggle_on": "Veb qidiruv yoqilgan — {chatbot_name} eng so'nggi ma'lumotlarni internetdan qidirishi mumkin.",
       "web_search_toggle_off": "{chatbot_name} eng so'nggi ma'lumotlarni topishi uchun veb qidiruvni yoqing.",
       "web_search_guest_disabled": "Veb qidiruvni yoqish uchun tizimga kiring.",
-      "from_the_web": "Internetdan"
+      "from_the_web": "Internetdan",
+      "sources_label": "Manbalar"
     },
     "sidebar": {
       "new_consultation": "Yangi chat",
@@ -555,7 +557,8 @@
       "web_search_toggle_on": "Веб-поиск включен — {chatbot_name} может искать актуальную информацию в интернете.",
       "web_search_toggle_off": "Включите веб-поиск, чтобы {chatbot_name} мог находить актуальную информацию.",
       "web_search_guest_disabled": "Войдите в систему, чтобы включить веб-поиск.",
-      "from_the_web": "Из интернета"
+      "from_the_web": "Из интернета",
+      "sources_label": "Источники"
     },
     "sidebar": {
       "new_consultation": "Новый чат",
