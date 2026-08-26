@@ -15,6 +15,7 @@ import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { TextSelectionTooltip } from './TextSelectionTooltip';
 import { useRouter, useParams } from 'next/navigation';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from './ui/dropdown-menu';
+import { LoadingMark } from './LoadingMark';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -652,7 +653,7 @@ export function ChatArea({
       >
         {!isHydrated ? (
           <div className="flex-1 flex items-center justify-center">
-            <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <LoadingMark size={56} />
           </div>
         ) : messages.length === 0 ? (
           <motion.div
