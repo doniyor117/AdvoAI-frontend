@@ -64,27 +64,28 @@
   100% { background-position: -50% 0; }
 }
 
-/* Generating indicator: the scale rocks — one pan dips, then the other —
-   instead of spinning in a full circle, and every loop returns to level
-   before tipping again, so it never freezes mid-tilt. */
-.scale-balance {
-  transform-origin: 50% 50%;
-  animation: scale-balance 2.4s ease-in-out infinite;
+/* Generating indicator: a circular reveal grows outward from the mark's own
+   center — the scale (which sits at the center of the full logo) resolves
+   first, then the star rays build up around it until the complete logo is
+   formed, then it retracts and repeats. Pure clip-path on the one combined
+   logo asset, so the reveal is always pixel-aligned with what it's revealing. */
+.logo-bloom {
+  animation: logo-bloom 2.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scale-balance {
+  .logo-bloom {
     animation: none;
+    clip-path: none;
   }
 }
 
-@keyframes scale-balance {
-  0% { transform: rotate(0deg); }
-  20% { transform: rotate(-11deg); }
-  45% { transform: rotate(9deg); }
-  65% { transform: rotate(-5deg); }
-  85% { transform: rotate(3deg); }
-  100% { transform: rotate(0deg); }
+@keyframes logo-bloom {
+  0% { clip-path: circle(0% at 50% 50%); }
+  35% { clip-path: circle(24% at 50% 50%); }
+  75% { clip-path: circle(60% at 50% 50%); }
+  88% { clip-path: circle(60% at 50% 50%); }
+  100% { clip-path: circle(0% at 50% 50%); }
 }
 
 @keyframes marquee {

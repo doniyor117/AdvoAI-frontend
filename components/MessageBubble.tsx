@@ -333,10 +333,11 @@ interface MessageBubbleProps {
   onAttachmentClick?: (attachment: FileAttachment) => void;
 }
 
-/** Small rocking-scale indicator shown while an assistant reply is still
- *  generating — the trailing marker sits below the text exactly like Claude's,
- *  and doubles as the "give me a second" cue before any text has arrived yet.
- *  It tilts side to side (never a full spin) and disappears the moment the
+/** Small indicator shown while an assistant reply is still generating — the
+ *  trailing marker sits below the text exactly like Claude's, and doubles as
+ *  the "give me a second" cue before any text has arrived yet. The logo
+ *  blooms outward from its own center (scale resolves, then the star rays
+ *  build up around it) rather than spinning, and disappears the moment the
  *  reply settles, rather than animating some separate "done" pose. */
 function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null }) {
   const { t } = useLanguage();
@@ -346,9 +347,9 @@ function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null
     <div className="flex items-center gap-2 mt-2 h-5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/advoai-scale.png"
+        src="/advoai-logo.svg"
         alt=""
-        className="w-4 h-4 scale-balance"
+        className="w-5 h-5 logo-bloom"
       />
       {label && (
         <span className="text-sm font-medium shimmer-text">{label}</span>
