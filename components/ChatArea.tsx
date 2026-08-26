@@ -729,7 +729,7 @@ export function ChatArea({
                   className="flex flex-col justify-start py-4 md:py-6 mb-2 md:mb-0 scroll-mt-24 md:scroll-mt-28"
                 >
                   <div className="bg-transparent text-slate-500 dark:text-slate-400 flex items-center gap-3 pl-1 md:pl-0">
-                    <Image src="/advoai-logo.png" alt="AdvoAI Logo" width={24} height={24} className="w-6 h-6 object-contain animate-pulse" referrerPolicy="no-referrer" unoptimized />
+                    <LoadingMark size={40} />
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                         {t('chat.processing', { chatbot_name: t('chatbot_name') })}
