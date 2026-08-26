@@ -11,7 +11,38 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 const TOKEN_KEY = 'advoai_token';
 
-// Token helpers removed. The backend sets an HttpOnly cookie automatically.
+// ── Token persistence ────────────────────────────────────────
+//
+// The JWT's own `exp` claim is the only source of truth for how long a
+// token is valid (currently a 72h sliding window — see
+// `_RENEWAL_THRESHOLD_HOURS` in the backend's middleware.py). The cookie
+// written here is a secondary copy for Next.js middleware / iOS Safari
+// (which can block reads of the backend's own cross-origin cookie); its
+// lifetime must track the token's real `exp`, never a hardcoded constant,
+// or the two can disagree about whether a session is still valid.
+
+function _decodeExpiryMs(token: string): number | null {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+    } catch {
+        return null;
+    }
+}
+
+export function persistToken(token: string): void {
+    localStorage.setItem(TOKEN_KEY, token);
+    const expiresAtMs = _decodeExpiryMs(token);
+    const maxAgeSeconds = expiresAtMs
+        ? Math.max(1, Math.floor((expiresAtMs - Date.now()) / 1000))
+        : 7 * 24 * 60 * 60; // fallback if the token is somehow unparseable
+    document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=${maxAgeSeconds}; samesite=lax`;
+}
+
+export function clearPersistedToken(): void {
+    localStorage.removeItem(TOKEN_KEY);
+    document.cookie = `${TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax`;
+}
 
 // ── Safe JSON parser ─────────────────────────────────────────
 
@@ -141,9 +172,23 @@ export async function authFetch(
     // app ("Failed to fetch"). By omitting credentials we send a normal CORS
     // request that the proxy's preflight allows, and authenticate purely via the
     // Bearer token above. The HttpOnly cookie is not usable cross-origin anyway.
-    return fetch(url, {
+    const res = await fetch(url, {
         ...options,
         headers,
         credentials: 'omit',
     });
+
+    // Sliding renewal: the backend reissues a token nearing expiry on any
+    // authenticated request and hands it back via this header (exposed
+    // cross-origin — see Access-Control-Expose-Headers in main.py). Picking
+    // it up here means every authFetch call keeps an active session alive,
+    // not just the ones that happen to touch AuthContext.
+    if (typeof window !== 'undefined') {
+        const renewed = res.headers.get('X-Renewed-Token');
+        if (renewed) {
+            persistToken(renewed);
+        }
+    }
+
+    return res;
 }

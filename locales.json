@@ -170,7 +170,8 @@
       "from_web": "From the web — not part of the verified legal corpus",
       "open_source": "Open source",
       "no_title": "Untitled document",
-      "sign_in_button": "Log In"
+      "sign_in_button": "Log In",
+      "cited_part_missing": "Couldn't locate the exact cited section — showing the start of the document."
     },
     "wizard": {
       "title": "Create Contract",
@@ -394,7 +395,8 @@
       "from_web": "Internetdan — tasdiqlangan huquqiy manba emas",
       "open_source": "Manbani ochish",
       "no_title": "Nomsiz hujjat",
-      "sign_in_button": "Tizimga kirish"
+      "sign_in_button": "Tizimga kirish",
+      "cited_part_missing": "Iqtibos keltirilgan aniq qism topilmadi — hujjat boshidan ko‘rsatilmoqda."
     },
     "wizard": {
       "title": "Shartnoma yaratish",
@@ -618,7 +620,8 @@
       "from_web": "Из интернета — не входит в проверенный правовой корпус",
       "open_source": "Открыть источник",
       "no_title": "Документ без названия",
-      "sign_in_button": "Войти"
+      "sign_in_button": "Войти",
+      "cited_part_missing": "Не удалось найти именно процитированный раздел — показано начало документа."
     },
     "wizard": {
       "title": "Создание договора",

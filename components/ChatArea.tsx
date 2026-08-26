@@ -618,7 +618,7 @@ export function ChatArea({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 md:px-8 py-4 md:py-8 space-y-6 z-0 relative flex flex-col pt-20"
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 md:px-8 py-4 md:py-8 z-0 relative flex flex-col pt-20"
       >
         {!isHydrated ? (
           <div className="flex-1 flex items-center justify-center">

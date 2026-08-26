@@ -9,6 +9,12 @@ export type Citation = {
   part_id?: string;
   title: string;
   text: string;
+  /** Short verbatim excerpt the model said it actually relied on, parsed
+   *  server-side from its hidden citation block. When present, InsightPanel
+   *  highlights this instead of matching the whole (20k+ char) part against
+   *  itself. Absent when the model's block was missing/unparseable, in which
+   *  case the panel falls back to whole-part matching against `text`. */
+  quote?: string;
   source_url?: string;
   /** 'corpus' = vetted legal document, resolvable via /api/documents/{id}/full.
    *  'web' = a live web search result; has no corpus document and must open
@@ -88,23 +94,28 @@ let cachedSidebarState: boolean | null = null;
 
 export function useChatManager(chatId?: string) {
   const draftKey = `advoai_draft_${chatId || 'new'}`;
-  
+  const { isAuthenticated, isLoading: isAuthLoading, user, setWebSearchEnabled } = useAuth();
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [quotedText, setQuotedText] = useState('');
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [activeAttachment, setActiveAttachment] = useState<FileAttachment | null>(null);
-  // Persisted across navigations — without this the toggle silently resets on every
-  // route change while the UI still shows it as on.
-  const [useWebSearch, setUseWebSearch] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('advoai_use_web_search') === 'true';
-  });
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('advoai_use_web_search', String(useWebSearch));
-    }
-  }, [useWebSearch]);
+  // Account-level preference (Batch 4) — replaces the old localStorage-only toggle
+  // so it follows the user across devices. `web_search_enabled` defaults to true on
+  // the backend; while the user hasn't loaded yet, default to true too so the toggle
+  // doesn't flash "off" on every page load.
+  const useWebSearch = user?.web_search_enabled ?? true;
+  const setUseWebSearch = useCallback(
+    (val: boolean) => {
+      setWebSearchEnabled(val).catch(() => {
+        // authFetch/setWebSearchEnabled already logs; the toggle just stays at its
+        // last known server value since `useWebSearch` is derived from `user`, not
+        // separate local state — no stale optimistic value to roll back.
+      });
+    },
+    [setWebSearchEnabled],
+  );
   const [isInsightOpen, setIsInsightOpen] = useState(false);
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
   // Every citation from the SAME answer as activeCitation — lets the panel mark all
@@ -152,7 +163,6 @@ export function useChatManager(chatId?: string) {
 
   const router = useRouter();
   const { addSession, sessions } = useSessions();
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const isNavigatingRef = useRef(false);
 
   const storageKey = chatId ? `advoai_chat_messages_${chatId}` : null;

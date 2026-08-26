@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { authFetch, safeJson } from '@/lib/authFetch';
+import { authFetch, safeJson, persistToken, clearPersistedToken } from '@/lib/authFetch';
 import { GUEST_CHAT_MIGRATION_ATTEMPTED_KEY } from '@/lib/migrateGuestChat';
 
 // ── Types ───────────────────────────────────────────────────
@@ -16,6 +16,10 @@ export interface User {
   has_password?: boolean;
   is_google_linked?: boolean;
   allow_data_collection?: boolean;
+  /** Account-level veto over router-decided web search (Batch 4) — replaces the old
+   *  localStorage-only toggle so it follows the user across devices. Absent means
+   *  "not yet loaded"; the backend default is true. */
+  web_search_enabled?: boolean;
   terms_accepted?: boolean;
 }
 
@@ -31,6 +35,7 @@ interface AuthContextType {
   loginWithGoogle: (credential: string) => Promise<{ success: boolean; error?: string; requiresConsent?: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  setWebSearchEnabled: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,18 +43,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // ── Provider ────────────────────────────────────────────────
 
 // ── Helpers for Tokens ────────────────────────────────────────
+//
+// setToken/clearToken are thin aliases over the shared authFetch helpers so
+// every call site (login, signup, google auth, sliding renewal) agrees on
+// one cookie lifetime derived from the token's own `exp` claim.
 
-function setToken(token: string) {
-  localStorage.setItem('advoai_token', token);
-  // Explicitly set cookie on frontend domain to fix iOS Safari 3rd-party cookie blocking
-  // This ensures Next.js middleware can always read the token on mobile.
-  document.cookie = `advoai_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`;
-}
-
-function clearToken() {
-  localStorage.removeItem('advoai_token');
-  document.cookie = 'advoai_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax';
-}
+const setToken = persistToken;
+const clearToken = clearPersistedToken;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -164,6 +164,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function setWebSearchEnabled(enabled: boolean) {
+    try {
+      const res = await authFetch('/api/auth/me/web-search', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+
+      const data = await safeJson(res);
+      if (res.ok) {
+        setUser(data.user as User);
+        return { success: true };
+      }
+      return { success: false, error: (data.detail as string) || 'Failed to update web search preference.' };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[WebSearchPreference] Error:', msg);
+      return { success: false, error: msg };
+    }
+  }
+
   async function loginWithGoogle(credential: string) {
     try {
       const res = await authFetch('/api/auth/google', {
@@ -216,6 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithGoogle,
         logout,
         refreshUser,
+        setWebSearchEnabled,
       }}
     >
       {children}

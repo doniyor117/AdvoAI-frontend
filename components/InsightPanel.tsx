@@ -199,6 +199,12 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
   const [docPaging, setDocPaging] = useState(false);
   const [docError, setDocError] = useState<'auth' | 'not_found' | 'error' | null>(null);
   const [targetPartId, setTargetPartId] = useState<string | null>(null);
+  // True when a citation named a specific part_id but that id wasn't found in
+  // the resolved document's parts — the panel still shows the document (from
+  // the top) rather than failing outright, but this must be surfaced, not
+  // silently swallowed (a stale/invalid part_id is otherwise indistinguishable
+  // from "the cited passage happens to be first in the document").
+  const [citedPartMissing, setCitedPartMissing] = useState(false);
 
   const citationKey = activeCitation?.id;
   const citationPartId = activeCitation?.part_id;
@@ -209,25 +215,45 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
   // clicked also gets auto-scroll.
   const usedPartCitations = useMemo(() => {
     const map = new Map<string, string>();
-    if (citationPartId && activeCitation?.text) map.set(citationPartId, activeCitation.text);
+    // Prefer the model's verbatim quote (a real sentence/clause) over the whole
+    // retrieved part's text — the quote is what buildHighlightRegex is actually
+    // meant to match against; falling back to `text` only happens when the model's
+    // citation block was missing/unparseable for this turn (see Batch 2).
+    const activeSnippet = activeCitation?.quote || activeCitation?.text;
+    if (citationPartId && activeSnippet) map.set(citationPartId, activeSnippet);
     for (const c of relatedCitations || []) {
-      if (c.id === citationKey && c.part_id && c.text && !map.has(c.part_id)) {
-        map.set(c.part_id, c.text);
+      const snippet = c.quote || c.text;
+      if (c.id === citationKey && c.part_id && snippet && !map.has(c.part_id)) {
+        map.set(c.part_id, snippet);
       }
     }
     return map;
-  }, [relatedCitations, citationKey, citationPartId, activeCitation?.text]);
+  }, [relatedCitations, citationKey, citationPartId, activeCitation?.quote, activeCitation?.text]);
 
   useEffect(() => {
-    if (!isOpen || !citationKey || isWebCitation) return;
+    // Always reset first, even when we're about to bail out below — otherwise
+    // a citation missing an id (malformed data) or a web citation would leave
+    // the PREVIOUS citation's parts sitting in state, and they'd render as if
+    // they belonged to the current one with no indication anything's wrong.
     let cancelled = false;
     partNodeRefs.current.clear();
-    setDocLoading(true);
     setDocError(null);
     setDocMeta(null);
     setDocPartsMeta(null);
     setDocParts([]);
     setTargetPartId(null);
+    setCitedPartMissing(false);
+
+    if (!isOpen || isWebCitation) { setDocLoading(false); return; }
+    if (!citationKey) {
+      // A citation with no id: no document can ever be resolved. Surface an
+      // explicit error instead of leaving the panel stuck on a loading spinner
+      // or, worse, blank with no explanation.
+      setDocLoading(false);
+      setDocError('error');
+      return;
+    }
+    setDocLoading(true);
 
     (async () => {
       try {
@@ -251,12 +277,26 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
         const page = await safeJson(pageRes);
         if (cancelled) return;
 
+        const fetchedParts: Part[] = page.parts || [];
+        if (fetchedParts.length === 0) {
+          // A 200 with zero parts is not success — there is nothing to show
+          // and nothing to highlight. Treat it the same as any other failure
+          // to load the document rather than falling through to render a bare
+          // chunk of citation text with no document context around it.
+          setDocError('error');
+          return;
+        }
+
         setDocMeta(meta);
         setDocPartsMeta(parts);
         setDocTotalParts(meta.total_parts ?? page.total_parts ?? 0);
-        setDocParts(page.parts || []);
+        setDocParts(fetchedParts);
         setDocOffset(page.offset ?? offset);
-        setTargetPartId(citationPartId || (page.parts?.[0]?.id ?? null));
+        setTargetPartId(citationPartId || fetchedParts[0].id);
+        // The citation named a specific part but it wasn't in this document's
+        // part list — we still show the document (from the top), but flag it
+        // so the UI can say so instead of silently looking like a match.
+        setCitedPartMissing(Boolean(citationPartId) && targetIndex < 0);
       } catch {
         if (!cancelled) setDocError('error');
       } finally {
@@ -588,6 +628,12 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
                     </div>
                   ) : docParts.length > 0 ? (
                     <div className="flex flex-col gap-1">
+                      {citedPartMissing && (
+                        <div className="flex items-start gap-2 mb-2 px-3 py-2 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs">
+                          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                          <span>{t('insight.cited_part_missing')}</span>
+                        </div>
+                      )}
                       {docParts.map((part) => {
                         const citationText = usedPartCitations.get(part.id);
                         // Auto-generated split titles ("{Long Title} (Part 12)") are a
@@ -626,9 +672,12 @@ export function InsightPanel({ isOpen, activeCitation, relatedCitations, activeA
                       )}
                     </div>
                   ) : (
-                    <div className="prose prose-sm md:prose-base prose-slate dark:prose-invert prose-headings:font-semibold max-w-none text-slate-800 dark:text-[#E6EDF3] leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeCitation?.text || ''}</ReactMarkdown>
-                    </div>
+                    // Transient pre-effect frame only (state was just reset, the
+                    // fetch hasn't started yet) — never a resting state. Rendering
+                    // `activeCitation.text` here used to silently pass off an
+                    // isolated chunk as if it were the full document; every real
+                    // outcome now has its own explicit branch above.
+                    <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400 flex-1" />
                   )}
                 </div>
 
