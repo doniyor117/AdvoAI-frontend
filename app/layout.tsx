@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   description: 'AI-powered legal chatbot for Uzbekistan',
   icons: {
     icon: '/favicon.png',
-    apple: '/icon-192x192.png',
+    apple: '/icon-512x512.png',
   },
   manifest: '/manifest.json',
   appleWebApp: {
