@@ -441,7 +441,7 @@ export function ChatArea({
             >
               <DropdownMenuItem
                 onSelect={() => fileInputRef.current?.click()}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-left cursor-pointer"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-left cursor-pointer focus:bg-slate-100 dark:focus:bg-white/5 focus:text-inherit"
               >
                 <Paperclip className="w-4.5 h-4.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
                 <span className="text-sm text-slate-700 dark:text-slate-200">{t('chat.attach_files')}</span>
@@ -453,7 +453,7 @@ export function ChatArea({
                     e.preventDefault();
                     setUseWebSearch(!useWebSearch);
                   }}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-left cursor-pointer"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-left cursor-pointer focus:bg-slate-100 dark:focus:bg-white/5 focus:text-inherit"
                   aria-pressed={useWebSearch}
                 >
                   <Globe className="w-4.5 h-4.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
