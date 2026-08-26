@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft, Quote, Globe, Plus } from 'lucide-react';
+import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft, Quote, Globe, Plus, Share2 } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageBubble } from './MessageBubble';
@@ -17,6 +17,8 @@ import { useRouter, useParams } from 'next/navigation';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from './ui/dropdown-menu';
 import { LoadingMark } from './LoadingMark';
 import { hasBootRevealPlayed, markBootRevealPlayed } from '@/lib/bootReveal';
+import { ShareChatModal } from './ShareChatModal';
+import { GeneratedFilesPanel } from './GeneratedFilesPanel';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -38,6 +40,11 @@ interface ChatAreaProps {
   sendBlockedReason?: string | null;
   useWebSearch?: boolean;
   setUseWebSearch?: (val: boolean) => void;
+  regenerateMessage?: (assistantMessageId: string) => void;
+  setActiveVariant?: (currentMessageId: string, targetMessageId: string) => void;
+  editMessage?: (userMessageId: string, newText: string, assistantMessageId: string) => void;
+  reportMessage?: (messageId: string, reason?: string) => Promise<boolean>;
+  fetchVariantInfo?: (message: Message) => void;
 }
 
 
@@ -86,7 +93,12 @@ export function ChatArea({
   setQuotedText,
   sendBlockedReason = null,
   useWebSearch = false,
-  setUseWebSearch
+  setUseWebSearch,
+  regenerateMessage,
+  setActiveVariant,
+  editMessage,
+  reportMessage,
+  fetchVariantInfo,
 }: ChatAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -112,11 +124,15 @@ export function ChatArea({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { t } = useLanguage();
   const { user, isAuthenticated } = useAuth();
-  const { deleteSession, updateSessionTitle, togglePinSession, sessions } = useSessions();
+  const { deleteSession, updateSessionTitle, togglePinSession, sessions, shareSession } = useSessions();
   const router = useRouter();
   const params = useParams();
   const currentChatId = params?.id as string | undefined;
   const { settings } = usePublicSettings();
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
+  const lastUserMessageIndex = messages.reduce((acc, m, i) => (m.role === 'user' ? i : acc), -1);
+  const generatedFileCount = messages.filter(m => m.role === 'assistant').reduce((acc, m) => acc + (m.attachments?.length || 0), 0);
 
   const handleQuoteSelection = (text: string) => {
     if (setQuotedText) {
@@ -537,6 +553,7 @@ export function ChatArea({
     : '';
 
   return (
+    <>
     <main className="flex-1 flex flex-col h-full relative min-w-0 bg-[#fafafa] dark:bg-[#0a0a0a] transition-[width,background-color] duration-300 ease-out">
       {/* Background Pattern for Empty State */}
       {messages.length === 0 && (
@@ -653,8 +670,38 @@ export function ChatArea({
               </div>
             )}
           </div>
+
+          {isAuthenticated && currentChatId && messages.length > 0 && (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={() => setIsFilesPanelOpen(o => !o)}
+                disabled={generatedFileCount === 0}
+                className="p-2 text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                aria-label="Files"
+                title="Files"
+              >
+                <FileText className="w-[18px] h-[18px]" />
+              </button>
+              <button
+                onClick={() => setIsShareModalOpen(true)}
+                className="p-2 text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
+                aria-label="Share chat"
+                title="Share"
+              >
+                <Share2 className="w-[18px] h-[18px]" />
+              </button>
+            </div>
+          )}
         </div>
       </header>
+
+      {isAuthenticated && currentChatId && (
+        <ShareChatModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          shareSession={(makePublic) => shareSession(currentChatId, makePublic)}
+        />
+      )}
 
       {/* Message List */}
       <div
@@ -708,14 +755,28 @@ export function ChatArea({
           </motion.div>
         ) : (
           <div className="max-w-4xl mx-auto w-full space-y-0 flex-1 pb-24 md:pb-32">
-            {messages.map((msg) => (
-              <MessageBubble 
-                key={msg.id} 
-                message={msg} 
-                onCitationClick={onCitationClick}
-                onAttachmentClick={onAttachmentClick}
-              />
-            ))}
+            {messages.map((msg, idx) => {
+              // Edit is scoped to only the single latest user message (see plan) —
+              // finding the most recent user-role index once per render, rather
+              // than per-bubble, keeps that rule expressed in one place.
+              const isLatestUserMessage = msg.role === 'user' && idx === lastUserMessageIndex;
+              return (
+                <MessageBubble
+                  key={msg.id}
+                  message={msg}
+                  onCitationClick={onCitationClick}
+                  onAttachmentClick={onAttachmentClick}
+                  isAuthenticated={isAuthenticated}
+                  regenerateMessage={regenerateMessage}
+                  setActiveVariant={setActiveVariant}
+                  editMessage={editMessage}
+                  reportMessage={reportMessage}
+                  fetchVariantInfo={fetchVariantInfo}
+                  nextMessage={messages[idx + 1]}
+                  isLatestUserMessage={isLatestUserMessage}
+                />
+              );
+            })}
 
             <AnimatePresence>
               {/* Once the streaming assistant placeholder exists, its own inline
@@ -771,5 +832,13 @@ export function ChatArea({
 
       <TextSelectionTooltip onQuote={handleQuoteSelection} />
     </main>
+    {isAuthenticated && currentChatId && (
+      <GeneratedFilesPanel
+        isOpen={isFilesPanelOpen}
+        onClose={() => setIsFilesPanelOpen(false)}
+        messages={messages}
+      />
+    )}
+    </>
   );
 }

@@ -79,7 +79,12 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     quotedText,
     setQuotedText,
     useWebSearch,
-    setUseWebSearch
+    setUseWebSearch,
+    regenerateMessage,
+    setActiveVariant,
+    editMessage,
+    reportMessage,
+    fetchVariantInfo,
   } = useChatManager(resolvedParams.id);
 
   return (
@@ -129,6 +134,11 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           sendBlockedReason={sendBlockedReason}
           useWebSearch={useWebSearch}
           setUseWebSearch={setUseWebSearch}
+          regenerateMessage={regenerateMessage}
+          setActiveVariant={setActiveVariant}
+          editMessage={editMessage}
+          reportMessage={reportMessage}
+          fetchVariantInfo={fetchVariantInfo}
         />
       )}
 

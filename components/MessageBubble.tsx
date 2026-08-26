@@ -1,15 +1,20 @@
 'use client';
 
-import React, { useState, memo, useEffect } from 'react';
+import React, { useState, memo, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChevronRight, ChevronDown, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote, AlertCircle, Download, Scale, Globe } from 'lucide-react';
+import {
+  ChevronRight, ChevronDown, ChevronLeft, Copy, ThumbsUp, ThumbsDown, Check, Quote,
+  AlertCircle, Download, Scale, Globe, RotateCcw, MoreHorizontal, Volume2, VolumeX,
+  Flag, Pencil, X as XIcon,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, Citation, FileAttachment, StreamStage } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePresignedUrl } from '@/hooks/usePresignedUrl';
 import { authFetch, downloadFile, downloadFileByKey } from '@/lib/authFetch';
 import { LoadingMark } from '@/components/LoadingMark';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 /** A single attachment card — shows image thumbnail (local or from R2) or file-type card */
 /**
@@ -328,10 +333,56 @@ function WebSourcesDropdown({ citations }: { citations: Citation[] }) {
   );
 }
 
+const SPEECH_LANG_MAP: Record<string, string> = { en: 'en-US', ru: 'ru-RU', uz: 'uz-UZ' };
+
 interface MessageBubbleProps {
   message: Message;
   onCitationClick: (citation: Citation, messageCitations: Citation[]) => void;
   onAttachmentClick?: (attachment: FileAttachment) => void;
+  /** Redo/Edit/Report/the ◀▶ switcher all need a real backend session — absent
+   *  (or a guest session) means this row silently degrades to Copy/thumbs only,
+   *  matching the guest-gating decision in the plan. */
+  isAuthenticated?: boolean;
+  regenerateMessage?: (assistantMessageId: string) => void;
+  setActiveVariant?: (currentMessageId: string, targetMessageId: string) => void;
+  editMessage?: (userMessageId: string, newText: string, assistantMessageId: string) => void;
+  reportMessage?: (messageId: string, reason?: string) => Promise<boolean>;
+  fetchVariantInfo?: (message: Message) => void;
+  /** True on the standalone /share/[token] read-only page — suppresses every
+   *  action row and the version switcher entirely. */
+  readOnly?: boolean;
+  /** The message immediately following this one, so a user bubble can find its
+   *  paired assistant reply to pass into editMessage's regenerate cascade. */
+  nextMessage?: Message;
+  isLatestUserMessage?: boolean;
+}
+
+/** ◀ 1/2 ▶ — only rendered once a message has more than one variant. */
+function VariantSwitcher({ message, onSwitch }: { message: Message; onSwitch: (direction: 'prev' | 'next') => void }) {
+  if (!message.variantCount || message.variantCount <= 1 || message.variantIndex === undefined) return null;
+  const index = message.variantIndex;
+  const count = message.variantCount;
+  return (
+    <div className="flex items-center gap-0.5 text-xs text-slate-400 dark:text-slate-500 select-none">
+      <button
+        disabled={index <= 0}
+        onClick={() => onSwitch('prev')}
+        className="p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+        aria-label="Previous version"
+      >
+        <ChevronLeft className="w-3.5 h-3.5" />
+      </button>
+      <span className="tabular-nums">{index + 1}/{count}</span>
+      <button
+        disabled={index >= count - 1}
+        onClick={() => onSwitch('next')}
+        className="p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+        aria-label="Next version"
+      >
+        <ChevronRight className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
 }
 
 /** Small indicator shown while an assistant reply is still generating — the
@@ -352,11 +403,39 @@ function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null
   );
 }
 
-export const MessageBubble = memo(function MessageBubble({ message, onCitationClick, onAttachmentClick }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({
+  message, onCitationClick, onAttachmentClick,
+  isAuthenticated = false, regenerateMessage, setActiveVariant, editMessage,
+  reportMessage, fetchVariantInfo, readOnly = false, nextMessage, isLatestUserMessage = false,
+}: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [isCopied, setIsCopied] = useState(false);
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
-  const [isShared, setIsShared] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isReported, setIsReported] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(message.text);
+  const [showUserActions, setShowUserActions] = useState(false);
+  const bubbleTextRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { t, lang } = useLanguage();
+
+  useEffect(() => {
+    if (!readOnly && message.rootId && message.variantCount === undefined) {
+      fetchVariantInfo?.(message);
+    }
+    // Only re-check when the identity of the message (or its known chain) changes —
+    // not on every text/citations patch while it's still streaming.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message.id, message.rootId, readOnly]);
+
+  useEffect(() => {
+    return () => {
+      if (isSpeaking && typeof window !== 'undefined') window.speechSynthesis.cancel();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCopy = async () => {
     try {
@@ -374,18 +453,66 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
     setFeedback(prev => (prev === value ? null : value));
   };
 
-  const handleShare = async () => {
-    try {
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({ text: message.text });
-        return;
-      }
-      await navigator.clipboard.writeText(message.text);
-      setIsShared(true);
-      setTimeout(() => setIsShared(false), 2000);
-    } catch {
-      // AbortError when the user cancels the native share sheet — not a failure.
+  const handleReadAloud = useCallback(() => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
     }
+    // Only one message reads at a time.
+    window.speechSynthesis.cancel();
+    // Read the RENDERED plain text (bubbleTextRef), not raw markdown — this avoids
+    // hand-rolling a markdown stripper for **/#/list-marker syntax.
+    const plainText = bubbleTextRef.current?.textContent || message.text;
+    const utterance = new SpeechSynthesisUtterance(plainText);
+    utterance.lang = SPEECH_LANG_MAP[lang] || 'en-US';
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+    setIsSpeaking(true);
+  }, [isSpeaking, lang, message.text]);
+
+  const handleReport = useCallback(async () => {
+    if (!reportMessage) return;
+    const ok = await reportMessage(message.id);
+    if (ok) {
+      setIsReported(true);
+      setTimeout(() => setIsReported(false), 2500);
+    }
+  }, [reportMessage, message.id]);
+
+  const handleVariantSwitch = useCallback((direction: 'prev' | 'next') => {
+    if (!setActiveVariant || message.variantIndex === undefined || !message.variantIds) return;
+    const targetIndex = direction === 'prev' ? message.variantIndex - 1 : message.variantIndex + 1;
+    const targetId = message.variantIds[targetIndex];
+    if (!targetId) return;
+    setActiveVariant(message.id, targetId);
+  }, [setActiveVariant, message.id, message.variantIndex, message.variantIds]);
+
+  const startEdit = () => {
+    setEditValue(message.text);
+    setIsEditing(true);
+  };
+
+  const saveEdit = () => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== message.text && nextMessage && editMessage) {
+      editMessage(message.id, trimmed, nextMessage.id);
+    }
+    setIsEditing(false);
+  };
+
+  const canRedo = isAuthenticated && !readOnly && !isUser && !message.isStreaming && message.text;
+  const canEdit = isAuthenticated && !readOnly && isUser && isLatestUserMessage && !!nextMessage;
+
+  // Long-press (mobile) reveal for the user-message action row — CSS :hover
+  // doesn't fire on touch, so a ~500ms touchstart/touchend timer stands in.
+  const handleTouchStart = () => {
+    longPressTimer.current = setTimeout(() => setShowUserActions(true), 500);
+  };
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
   };
 
   return (
@@ -420,15 +547,17 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
         </div>
       )}
 
-      {/* ── Text bubble ── */}
-      <div className={`${isUser
+      {/* ── Text bubble — swapped out for the inline edit textarea (rendered
+          further below, in the user-actions block) while editing a user
+          message, rather than showing stale text alongside the editor. ── */}
+      {!(isUser && isEditing) && <div className={`${isUser
           ? 'w-fit max-w-[85%] md:max-w-2xl bg-secondary text-secondary-foreground rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm'
           : message.isError
             // isError was set but never read, so failures looked identical to answers.
             ? 'w-full rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/70 dark:bg-red-900/15 pt-3 pb-4 px-6 md:px-8 md:pt-4 md:pb-6'
             : 'w-full bg-transparent pt-3 pb-4 px-6 md:px-8 md:pt-4 md:pb-6'
         }`}>
-        <div className={`prose max-w-none break-words ${isUser ? 'prose-sm md:prose-base prose-slate dark:prose-invert prose-p:my-0 prose-headings:my-0 font-sans font-medium text-slate-700 dark:text-slate-200' : 'prose-slate dark:prose-invert font-serif text-base md:text-lg leading-[1.6] md:leading-[1.7] prose-p:mb-6 prose-ul:mb-6 prose-ol:mb-6'}`}>
+        <div ref={isUser ? undefined : bubbleTextRef} className={`prose max-w-none break-words ${isUser ? 'prose-sm md:prose-base prose-slate dark:prose-invert prose-p:my-0 prose-headings:my-0 font-sans font-medium text-slate-700 dark:text-slate-200' : 'prose-slate dark:prose-invert font-serif text-base md:text-lg leading-[1.6] md:leading-[1.7] prose-p:mb-6 prose-ul:mb-6 prose-ol:mb-6'}`}>
           <ReactMarkdown 
             remarkPlugins={[remarkGfm]}
             components={{
@@ -463,56 +592,151 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
           );
         })()}
 
-        {/* Action Buttons for AdvoAI — hidden until the reply has actually
-            settled; showing "copy/like/share" on an empty, still-generating
-            bubble offers actions on content that doesn't exist yet. */}
-        {!isUser && !message.isStreaming && message.text && (
-          <div className="mt-4 flex items-center gap-1 opacity-100 transition-opacity">
-            <button
-              onClick={handleCopy}
-              className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
-              aria-label="Copy message"
-              title="Copy"
-            >
-              {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={() => handleFeedback('up')}
-              className={`p-1.5 rounded-md transition-colors ${
-                feedback === 'up'
-                  ? 'text-emerald-600 bg-emerald-500/10'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
-              }`}
-              aria-pressed={feedback === 'up'}
-              aria-label="Mark as helpful"
-              title="Helpful"
-            >
-              <ThumbsUp className="w-4 h-4" fill={feedback === 'up' ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              onClick={() => handleFeedback('down')}
-              className={`p-1.5 rounded-md transition-colors ${
-                feedback === 'down'
-                  ? 'text-red-500 bg-red-500/10'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
-              }`}
-              aria-pressed={feedback === 'down'}
-              aria-label="Mark as not helpful"
-              title="Not helpful"
-            >
-              <ThumbsDown className="w-4 h-4" fill={feedback === 'down' ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              onClick={handleShare}
-              className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
-              aria-label="Share message"
-              title="Share"
-            >
-              {isShared ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
-            </button>
+        {/* Action row for AdvoAI's own replies — Gemini's order (like, dislike,
+            redo, copy, then a 3-dot menu), always visible once the reply has
+            settled. Hidden until then; showing actions on an empty,
+            still-generating bubble offers actions on content that doesn't exist
+            yet. Real chat-level sharing (Batch E) replaced the old per-message
+            Share2 button, which only ever copied the same text Copy does. */}
+        {!isUser && !readOnly && !message.isStreaming && message.text && (
+          <div className="mt-3 flex flex-col gap-1.5">
+            {!readOnly && <VariantSwitcher message={message} onSwitch={handleVariantSwitch} />}
+            <div className="flex items-center gap-1 opacity-100 transition-opacity">
+              <button
+                onClick={() => handleFeedback('up')}
+                className={`p-1.5 rounded-md transition-colors ${
+                  feedback === 'up'
+                    ? 'text-emerald-600 bg-emerald-500/10'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+                aria-pressed={feedback === 'up'}
+                aria-label="Mark as helpful"
+                title="Helpful"
+              >
+                <ThumbsUp className="w-4 h-4" fill={feedback === 'up' ? 'currentColor' : 'none'} />
+              </button>
+              <button
+                onClick={() => handleFeedback('down')}
+                className={`p-1.5 rounded-md transition-colors ${
+                  feedback === 'down'
+                    ? 'text-red-500 bg-red-500/10'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+                aria-pressed={feedback === 'down'}
+                aria-label="Mark as not helpful"
+                title="Not helpful"
+              >
+                <ThumbsDown className="w-4 h-4" fill={feedback === 'down' ? 'currentColor' : 'none'} />
+              </button>
+              {canRedo && (
+                <button
+                  onClick={() => regenerateMessage?.(message.id)}
+                  className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
+                  aria-label="Redo"
+                  title="Redo"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                onClick={handleCopy}
+                className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
+                aria-label="Copy message"
+                title="Copy"
+              >
+                {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+              </button>
+              {!readOnly && (
+                <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
+                      aria-label="More actions"
+                      title="More"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={handleReadAloud}>
+                      {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                      {isSpeaking ? 'Stop' : 'Read aloud'}
+                    </DropdownMenuItem>
+                    {isAuthenticated && (
+                      <DropdownMenuItem onClick={handleReport} disabled={isReported}>
+                        <Flag className="w-4 h-4" />
+                        {isReported ? 'Reported' : 'Report legal issue'}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </div>
         )}
-      </div>
+      </div>}
+
+      {/* ── User message actions: Edit + Copy — hidden by default, revealed on
+          hover (desktop) or long-press (mobile), unlike the assistant row above
+          which is always visible. Answer-quality actions (thumbs/redo/report/
+          listen) don't apply to the user's own text. ── */}
+      {isUser && !readOnly && (
+        <div
+          className="group/user relative mt-1.5 max-w-[85%] md:max-w-2xl"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onMouseLeave={() => setShowUserActions(false)}
+          onMouseEnter={() => setShowUserActions(true)}
+        >
+          {isEditing ? (
+            <div className="flex flex-col gap-2 w-full">
+              <textarea
+                autoFocus
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                rows={3}
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#141414] px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEdit}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className={`flex items-center justify-end gap-1 transition-opacity ${showUserActions ? 'opacity-100' : 'opacity-0 pointer-events-none md:group-hover/user:opacity-100 md:group-hover/user:pointer-events-auto'}`}>
+              <VariantSwitcher message={message} onSwitch={handleVariantSwitch} />
+              {canEdit && (
+                <button
+                  onClick={startEdit}
+                  className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
+                  aria-label="Edit message"
+                  title="Edit"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                onClick={handleCopy}
+                className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
+                aria-label="Copy message"
+                title="Copy"
+              >
+                {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 });

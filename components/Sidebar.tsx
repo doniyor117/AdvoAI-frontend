@@ -4,13 +4,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MessageSquare, Plus, Scale, X, PanelLeftClose, PanelLeftOpen, Search, Settings, User, LogOut, CreditCard, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn, HelpCircle, Sun, Moon, Monitor } from 'lucide-react';
+import { MessageSquare, Plus, Scale, X, PanelLeftClose, PanelLeftOpen, Search, Settings, User, LogOut, CreditCard, GitCompare, FileSignature, Globe, ChevronDown, Check, Trash2, MoreVertical, Edit2, Pin, Shield, LogIn, HelpCircle, Sun, Moon, Monitor, Download } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'motion/react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { SettingsModal } from './SettingsModal';
 import { useSessions } from '@/hooks/useSessions';
 import { useRouter, useParams } from 'next/navigation';
@@ -115,6 +116,7 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onCompareContrac
   const { t, lang, setLang } = useLanguage();
   const { theme, setTheme } = useTheme();
   const { user, isAuthenticated, isAdmin, logout, isLoading } = useAuth();
+  const { canInstall, promptInstall } = useInstallPrompt();
   const { settings } = usePublicSettings();
 
   const { sessions, deleteSession, updateSessionTitle, togglePinSession, isHydrated } = useSessions();
@@ -494,21 +496,33 @@ export function Sidebar({ isOpen, setIsOpen, onNewConsultation, onCompareContrac
                         )}
                       </AnimatePresence>
 
-                      <button
-                        onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors active:scale-95 ${isProfileMenuOpen ? 'bg-black/5 dark:bg-white/5' : 'hover:bg-black/5 dark:hover:bg-white/5'} text-slate-700 dark:text-slate-300`}
-                      >
-                        <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold flex-shrink-0">
-                          {initials}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="truncate font-medium block text-sm text-slate-900 dark:text-white">{displayName}</span>
-                          {user.email && (
-                            <span className="truncate block text-xs text-slate-500">{user.email}</span>
-                          )}
-                        </div>
-                        <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                          className={`flex-1 min-w-0 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors active:scale-95 ${isProfileMenuOpen ? 'bg-black/5 dark:bg-white/5' : 'hover:bg-black/5 dark:hover:bg-white/5'} text-slate-700 dark:text-slate-300`}
+                        >
+                          <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold flex-shrink-0">
+                            {initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="truncate font-medium block text-sm text-slate-900 dark:text-white">{displayName}</span>
+                            {user.email && (
+                              <span className="truncate block text-xs text-slate-500">{user.email}</span>
+                            )}
+                          </div>
+                          <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                        </button>
+                        {canInstall && (
+                          <button
+                            onClick={promptInstall}
+                            className="p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors flex-shrink-0"
+                            aria-label="Install AdvoAI app"
+                            title="Install app"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </>
                   ) : (
                     /* Not logged in: Settings + Login */

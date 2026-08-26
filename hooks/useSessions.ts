@@ -226,6 +226,28 @@ export function useSessions() {
     }
   }, [isAuthenticated, fetchSessions]);
 
+  /** Creates (or revokes) a public read-only share link — guest sessions have no
+   *  server-side row to share, so this is authenticated-only, matching the backend
+   *  gate. Returns the full share URL on the frontend's own domain, or null when
+   *  revoking / on failure. */
+  const shareSession = useCallback(async (id: string, makePublic: boolean): Promise<string | null> => {
+    if (!isAuthenticated) return null;
+    try {
+      const res = await authFetch(`/api/sessions/${id}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ public: makePublic }),
+      });
+      if (!res.ok) return null;
+      const data = await safeJson(res);
+      if (!makePublic || !data.token) return null;
+      return `${window.location.origin}/share/${data.token}`;
+    } catch (err) {
+      console.error('Failed to update chat sharing:', err);
+      return null;
+    }
+  }, [isAuthenticated]);
+
   return {
     sessions,
     addSession,
@@ -233,6 +255,7 @@ export function useSessions() {
     togglePinSession,
     deleteSession,
     refreshSessions,
+    shareSession,
     isHydrated,
   };
 }

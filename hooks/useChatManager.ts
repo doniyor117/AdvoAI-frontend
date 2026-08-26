@@ -78,6 +78,18 @@ export type Message = {
   isStreaming?: boolean;
   /** Current SSE `status` stage, cleared as soon as the first answer text arrives. */
   statusLabel?: StreamStage | null;
+  /** Root message id of this message's variant chain (Redo/Edit) — present once a
+   *  message has ever been redone/edited, absent otherwise. `rootId !== id` means
+   *  this specific message IS a non-root variant (definite proof a switcher applies);
+   *  `rootId === id` means it might still have inactive siblings from a prior redo
+   *  the user has since switched back away from — `variantIndex`/`variantCount`
+   *  (lazily fetched — see fetchVariantInfo) resolve that ambiguity. */
+  rootId?: string;
+  variantIndex?: number;
+  variantCount?: number;
+  /** All sibling ids in this chain, oldest first — lets the ◀▶ switcher resolve
+   *  "the next/previous variant's id" without a fetch per click. */
+  variantIds?: string[];
 };
 
 // ── Fingerprint (simple hash for guest tracking) ────────────
@@ -251,6 +263,7 @@ export function useChatManager(chatId?: string) {
                       s3_key: a.s3_key,
                     }))
                   : undefined,
+                rootId: m.root_id,
               }));
               if (generation !== loadGeneration.current) return;
               setMessages(history);
@@ -391,6 +404,112 @@ export function useChatManager(chatId?: string) {
     }));
   }
 
+  // ── SSE stream consumption (shared by a normal send, Redo, and Edit) ──────
+  // Reads chat.py's `_generate_chat_stream` event contract from an already-issued
+  // fetch Response and patches it into an existing assistant message id. Extracted
+  // out of sendToBackend so /regenerate and /edit — which produce the exact same
+  // event stream against an existing bubble instead of a freshly appended one —
+  // don't have to duplicate the reader/decoder loop.
+  const consumeChatStream = useCallback(async (
+    res: Response,
+    assistantId: string,
+    userClientMessageId?: string,
+  ): Promise<{
+    answer: string;
+    citations: Citation[];
+    attachments: FileAttachment[];
+    session_id: string | null;
+    message_id: string;
+  }> => {
+    const patchMsg = (patch: Partial<Message> | ((m: Message) => Partial<Message>)) => {
+      setMessages(prev => prev.map(m => m.id === assistantId
+        ? { ...m, ...(typeof patch === 'function' ? patch(m) : patch) }
+        : m));
+    };
+
+    let finalAnswer = '';
+    let finalCitations: Citation[] = [];
+    let finalAttachments: FileAttachment[] = [];
+    let sessionIdResult: string | null = null;
+    let finalMessageId = assistantId;
+
+    try {
+      if (!res.ok) {
+        const errData = await safeJson(res).catch(() => ({}));
+        const detailMsg = typeof errData.detail === 'object' ? JSON.stringify(errData.detail) : (errData.detail || `Request failed (${res.status})`);
+        throw new Error(detailMsg);
+      }
+      if (!res.body) {
+        throw new Error('This browser does not support streamed responses.');
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const frames = buffer.split('\n\n');
+        buffer = frames.pop() || ''; // last (possibly incomplete) frame carries over
+
+        for (const raw of frames) {
+          if (!raw.trim()) continue;
+          const parsed = parseSseFrame(raw);
+          if (!parsed) continue;
+          const { event, data } = parsed;
+
+          if (event === 'status') {
+            patchMsg({ statusLabel: data.stage });
+          } else if (event === 'delta') {
+            finalAnswer += data.text;
+            patchMsg(m => ({ text: (m.text || '') + data.text, statusLabel: null }));
+          } else if (event === 'citations') {
+            finalCitations = mapCitations(data.citations);
+            patchMsg({ citations: finalCitations });
+          } else if (event === 'done') {
+            sessionIdResult = data.session_id || null;
+            finalAttachments = mapAttachments(data.attachments);
+            patchMsg({ isStreaming: false, statusLabel: null, attachments: finalAttachments });
+            // Adopt the real server-side id in place of the client-generated
+            // placeholder — Redo/Edit/Report need a real id to address this
+            // message in a future request, not just the id it was created with.
+            if (data.message_id) {
+              finalMessageId = data.message_id;
+              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, id: data.message_id } : m));
+            }
+            if (userClientMessageId && data.user_message_id) {
+              setMessages(prev => prev.map(m => m.id === userClientMessageId ? { ...m, id: data.user_message_id } : m));
+            }
+          } else if (event === 'error') {
+            throw new Error(data.detail || 'An error occurred. Please try again.');
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error)?.name === 'AbortError') throw err;
+      patchMsg({
+        isStreaming: false,
+        statusLabel: null,
+        isError: true,
+        text: `⚠️ ${(err as Error).message || 'An error occurred. Please try again.'}`,
+      });
+      // Swallowed here (not re-thrown): the error is already rendered into the
+      // placeholder bubble above, so callers only need the AbortError case, not a
+      // second error bubble of their own.
+    }
+
+    return {
+      answer: finalAnswer,
+      citations: finalCitations,
+      attachments: finalAttachments,
+      session_id: sessionIdResult,
+      message_id: finalMessageId,
+    };
+  }, []);
+
   // ── Send message to backend ───────────────────────────────
   // Streams the answer over SSE (chat.py's _generate_chat_stream), writing directly
   // into a placeholder assistant message this function creates and owns — the
@@ -404,6 +523,7 @@ export function useChatManager(chatId?: string) {
     question: string,
     currentSessionId: string | null,
     filesToAttach: FileAttachment[] = [],
+    userClientMessageId?: string,
   ): Promise<{
     answer: string;
     citations: Citation[];
@@ -467,90 +587,143 @@ export function useChatManager(chatId?: string) {
       statusLabel: 'thinking',
     }]);
 
-    const patchMsg = (patch: Partial<Message> | ((m: Message) => Partial<Message>)) => {
-      setMessages(prev => prev.map(m => m.id === assistantId
-        ? { ...m, ...(typeof patch === 'function' ? patch(m) : patch) }
-        : m));
-    };
-
-    let finalAnswer = '';
-    let finalCitations: Citation[] = [];
-    let finalAttachments: FileAttachment[] = [];
-    let sessionIdResult: string | null = null;
-
+    let res: Response;
     try {
-      const res = await authFetch('/api/chat/', {
+      res = await authFetch('/api/chat/', {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
         signal: controller.signal,
       });
-
-      if (!res.ok) {
-        const errData = await safeJson(res).catch(() => ({}));
-        const detailMsg = typeof errData.detail === 'object' ? JSON.stringify(errData.detail) : (errData.detail || `Request failed (${res.status})`);
-        throw new Error(detailMsg);
-      }
-      if (!res.body) {
-        throw new Error('This browser does not support streamed responses.');
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const frames = buffer.split('\n\n');
-        buffer = frames.pop() || ''; // last (possibly incomplete) frame carries over
-
-        for (const raw of frames) {
-          if (!raw.trim()) continue;
-          const parsed = parseSseFrame(raw);
-          if (!parsed) continue;
-          const { event, data } = parsed;
-
-          if (event === 'status') {
-            patchMsg({ statusLabel: data.stage });
-          } else if (event === 'delta') {
-            finalAnswer += data.text;
-            patchMsg(m => ({ text: (m.text || '') + data.text, statusLabel: null }));
-          } else if (event === 'citations') {
-            finalCitations = mapCitations(data.citations);
-            patchMsg({ citations: finalCitations });
-          } else if (event === 'done') {
-            sessionIdResult = data.session_id || null;
-            finalAttachments = mapAttachments(data.attachments);
-            patchMsg({ isStreaming: false, statusLabel: null, attachments: finalAttachments });
-          } else if (event === 'error') {
-            throw new Error(data.detail || 'An error occurred. Please try again.');
-          }
-        }
-      }
     } catch (err) {
       if ((err as Error)?.name === 'AbortError') throw err;
-      patchMsg({
-        isStreaming: false,
-        statusLabel: null,
-        isError: true,
-        text: `⚠️ ${(err as Error).message || 'An error occurred. Please try again.'}`,
-      });
-      // Swallowed here (not re-thrown): the error is already rendered into the
-      // placeholder bubble above, so callers only need the AbortError case, not a
-      // second error bubble of their own.
+      setMessages(prev => prev.map(m => m.id === assistantId
+        ? { ...m, isStreaming: false, statusLabel: null, isError: true, text: `⚠️ ${(err as Error).message || 'An error occurred. Please try again.'}` }
+        : m));
+      return { answer: '', citations: [], attachments: [], session_id: null };
     }
 
-    return {
-      answer: finalAnswer,
-      citations: finalCitations,
-      sources: finalCitations,
-      attachments: finalAttachments,
-      session_id: sessionIdResult,
-    };
-  }, [useWebSearch]);
+    const result = await consumeChatStream(res, assistantId, userClientMessageId);
+    return { ...result, sources: result.citations };
+  }, [useWebSearch, consumeChatStream]);
+
+  /** Fetches the sibling variants of a message's chain — called lazily (never on
+   *  every render) so a plain, never-redone message costs no extra request. */
+  const fetchVariantInfo = useCallback(async (message: Message) => {
+    if (!isAuthenticated || !sessionId || !message.rootId) return;
+    try {
+      const res = await authFetch(`/api/sessions/${sessionId}/messages/${message.id}/variants`);
+      if (!res.ok) return;
+      const data = await safeJson(res);
+      const variants: { id: string }[] = data.variants || [];
+      if (variants.length <= 1) return;
+      const index = variants.findIndex(v => v.id === message.id);
+      setMessages(prev => prev.map(m => m.id === message.id
+        ? { ...m, variantIndex: index >= 0 ? index : variants.length - 1, variantCount: variants.length, variantIds: variants.map(v => v.id) }
+        : m));
+    } catch {
+      // Non-fatal — the switcher just won't show for this message.
+    }
+  }, [isAuthenticated, sessionId]);
+
+  /** Redo: re-answers the question behind this assistant reply. The old answer
+   *  isn't lost — it stays reachable via the ◀▶ switcher (setActiveVariant). */
+  const regenerateMessage = useCallback(async (assistantMessageId: string) => {
+    if (!isAuthenticated || !sessionId) return;
+    setMessages(prev => prev.map(m => m.id === assistantMessageId
+      ? { ...m, isStreaming: true, statusLabel: 'thinking', text: '', citations: [] }
+      : m));
+    try {
+      const res = await authFetch(`/api/sessions/${sessionId}/messages/${assistantMessageId}/regenerate`, {
+        method: 'POST',
+      });
+      const result = await consumeChatStream(res, assistantMessageId);
+      // The stream's `done` handler may have already swapped the placeholder id
+      // for the real server id — look up variants by whichever id is now live.
+      const liveId = result.message_id || assistantMessageId;
+      const variantsRes = await authFetch(`/api/sessions/${sessionId}/messages/${liveId}/variants`).catch(() => null);
+      if (variantsRes?.ok) {
+        const data = await safeJson(variantsRes);
+        const variants: { id: string }[] = data.variants || [];
+        setMessages(prev => prev.map(m => m.id === liveId
+          ? { ...m, rootId: variants[0]?.id, variantIndex: variants.length - 1, variantCount: variants.length, variantIds: variants.map(v => v.id) }
+          : m));
+      }
+      return result;
+    } catch (err) {
+      if ((err as Error)?.name === 'AbortError') return;
+      setMessages(prev => prev.map(m => m.id === assistantMessageId
+        ? { ...m, isStreaming: false, statusLabel: null, isError: true, text: `⚠️ ${(err as Error).message || 'Could not redo this reply.'}` }
+        : m));
+    }
+  }, [isAuthenticated, sessionId, consumeChatStream]);
+
+  /** Switches which variant in a chain is shown (the ◀▶ switcher) — no
+   *  generation, just an activation flip. */
+  const setActiveVariant = useCallback(async (currentMessageId: string, targetMessageId: string) => {
+    if (!isAuthenticated || !sessionId) return;
+    try {
+      await authFetch(`/api/sessions/${sessionId}/messages/${targetMessageId}/activate`, { method: 'PATCH' });
+      // Re-fetch full history so the swapped-in variant's text/citations/attachments
+      // render correctly — the local state only ever holds one variant's content.
+      const res = await authFetch(`/api/sessions/${sessionId}/messages`);
+      if (res.ok) {
+        const data = await safeJson(res);
+        const history = (data.messages || []).map((m: any) => ({
+          id: m.id || generateId(),
+          role: m.role,
+          text: m.content || m.text || '',
+          citations: Array.isArray(m.sources) ? m.sources : m.citations,
+          attachments: m.attachments
+            ? m.attachments.map((a: any) => ({ document_id: a.document_id, display_name: a.display_name, mime_type: a.mime_type, s3_key: a.s3_key }))
+            : undefined,
+          rootId: m.root_id,
+        }));
+        setMessages(history);
+      }
+    } catch (err) {
+      console.error('Failed to switch message variant', err);
+    }
+  }, [isAuthenticated, sessionId]);
+
+  /** Edits the latest user message and cascades straight into a fresh answer for
+   *  it — one request, one stream, matching "edit → save → watch it regenerate." */
+  const editMessage = useCallback(async (userMessageId: string, newText: string, assistantMessageId: string) => {
+    if (!isAuthenticated || !sessionId) return;
+    setMessages(prev => prev.map(m => {
+      if (m.id === userMessageId) return { ...m, text: newText };
+      if (m.id === assistantMessageId) return { ...m, isStreaming: true, statusLabel: 'thinking', text: '', citations: [] };
+      return m;
+    }));
+    try {
+      const res = await authFetch(`/api/sessions/${sessionId}/messages/${userMessageId}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: newText }),
+      });
+      return await consumeChatStream(res, assistantMessageId, userMessageId);
+    } catch (err) {
+      if ((err as Error)?.name === 'AbortError') return;
+      setMessages(prev => prev.map(m => m.id === assistantMessageId
+        ? { ...m, isStreaming: false, statusLabel: null, isError: true, text: `⚠️ ${(err as Error).message || 'Could not save this edit.'}` }
+        : m));
+    }
+  }, [isAuthenticated, sessionId, consumeChatStream]);
+
+  /** Report legal issue — authenticated-only, matching the backend gate. */
+  const reportMessage = useCallback(async (messageId: string, reason?: string) => {
+    if (!isAuthenticated) return false;
+    try {
+      const res = await authFetch(`/api/chat/${messageId}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason || null }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, [isAuthenticated]);
 
   const handleSendMessage = useCallback((text: string) => {
     const trimmed = text.trim();
@@ -681,7 +854,7 @@ export function useChatManager(chatId?: string) {
     // it directly) — this callback only needs the resolved session id for its own
     // bookkeeping. AbortError (navigated away mid-stream) is the one case it still
     // re-throws, since the bubble it was streaming into no longer matters here.
-    sendToBackend(finalPrompt, sessionId, currentAttachments)
+    sendToBackend(finalPrompt, sessionId, currentAttachments, newUserMsg.id)
       .then(result => {
         if (result.session_id && currentChatId) {
           setSessionId(result.session_id);
@@ -736,9 +909,14 @@ export function useChatManager(chatId?: string) {
       const backendSessionId = isAuthenticated ? chatId : null;
 
       setIsLoading(true);
+      // The pending user message was created by the PREVIOUS page's
+      // handleSendMessage call and only survives here via the localStorage cache
+      // loadMessages() already read into `messages` — recover its client id so the
+      // backend's real id can still be adopted on `done` (see consumeChatStream).
+      const pendingUserMsgId = [...messages].reverse().find(m => m.role === 'user')?.id;
       // See the equivalent call in handleSendMessage above — sendToBackend owns the
       // assistant bubble itself; this callback only needs the resolved session id.
-      sendToBackend(pendingQuestion, backendSessionId, pendingAttachments)
+      sendToBackend(pendingQuestion, backendSessionId, pendingAttachments, pendingUserMsgId)
         .then(result => {
           if (result.session_id) {
             setSessionId(result.session_id);
@@ -762,7 +940,7 @@ export function useChatManager(chatId?: string) {
           setIsLoading(false);
         });
     }
-  }, [isHydrated, chatId, isAuthenticated, sendToBackend, sessions]);
+  }, [isHydrated, chatId, isAuthenticated, sendToBackend, sessions, messages]);
 
   const handleCitationClick = useCallback((citation: Citation, messageCitations: Citation[] = []) => {
     setActiveCitation(citation);
@@ -986,5 +1164,11 @@ function getFileValidationError(file: File): string | null {
     chatTitle,
     quotedText,
     setQuotedText,
+    sessionId,
+    regenerateMessage,
+    setActiveVariant,
+    editMessage,
+    reportMessage,
+    fetchVariantInfo,
   };
 }
