@@ -525,7 +525,7 @@ export function ChatArea({
     : '';
 
   return (
-    <main className="flex-1 flex flex-col h-full relative min-w-0 bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors duration-200">
+    <main className="flex-1 flex flex-col h-full relative min-w-0 bg-[#fafafa] dark:bg-[#0a0a0a] transition-[width,background-color] duration-300 ease-out">
       {/* Background Pattern for Empty State */}
       {messages.length === 0 && (
         <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-200/50 dark:from-white/[0.02] to-[#fafafa] dark:to-[#0a0a0a] pointer-events-none" />
@@ -648,7 +648,7 @@ export function ChatArea({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 md:px-8 py-4 md:py-8 z-0 relative flex flex-col pt-20"
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 md:px-8 py-4 md:py-8 z-0 relative flex flex-col pt-32"
       >
         {!isHydrated ? (
           <div className="flex-1 flex items-center justify-center">

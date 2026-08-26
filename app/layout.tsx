@@ -22,10 +22,7 @@ export const metadata: Metadata = {
   title: 'AdvoAI - Legal AI',
   description: 'AI-powered legal chatbot for Uzbekistan',
   icons: {
-    icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.png', type: 'image/png' },
-    ],
+    icon: '/favicon.png',
     apple: '/icon-192x192.png',
   },
   manifest: '/manifest.json',

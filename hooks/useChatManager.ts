@@ -601,6 +601,15 @@ export function useChatManager(chatId?: string) {
       setInputValue('');
       setAttachments([]);
 
+      // Show the user's own message immediately, on this page, before the
+      // session-creation network round trip (and the navigation it gates)
+      // resolve. Without this the screen sits blank — same layout, same
+      // centered prompt UI — for however long that request takes, reading
+      // as a stall rather than "your message was sent."
+      setMessages(prev => [...prev, newUserMsg]);
+      setIsHydrated(true);
+      setIsLoading(true);
+
       // Store pending question for after redirect (use finalPrompt so quoted text is preserved)
       localStorage.setItem('advoai_pending_question', finalPrompt);
       if (currentAttachments.length > 0) {
@@ -620,6 +629,8 @@ export function useChatManager(chatId?: string) {
         } catch (err) {
           console.error("Failed to create chat session", err);
           setInputValue(trimmed);
+          setMessages(prev => prev.filter(m => m.id !== newUserMsg.id));
+          setIsLoading(false);
           isNavigatingRef.current = false;
           alert("Failed to create chat. Please check your connection or try again.");
           return;
