@@ -359,6 +359,8 @@ function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null
 export const MessageBubble = memo(function MessageBubble({ message, onCitationClick, onAttachmentClick }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [isCopied, setIsCopied] = useState(false);
+  const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
+  const [isShared, setIsShared] = useState(false);
 
   const handleCopy = async () => {
     try {
@@ -368,6 +370,25 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
     } catch {
       // Clipboard API requires a secure context (HTTPS)
       console.warn('[MessageBubble] Copy failed — secure context required');
+    }
+  };
+
+  const handleFeedback = (value: 'up' | 'down') => {
+    // A toggle, not a one-shot vote — clicking the active choice again clears it.
+    setFeedback(prev => (prev === value ? null : value));
+  };
+
+  const handleShare = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ text: message.text });
+        return;
+      }
+      await navigator.clipboard.writeText(message.text);
+      setIsShared(true);
+      setTimeout(() => setIsShared(false), 2000);
+    } catch {
+      // AbortError when the user cancels the native share sheet — not a failure.
     }
   };
 
@@ -446,8 +467,10 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
           );
         })()}
 
-        {/* Action Buttons for AdvoAI */}
-        {!isUser && (
+        {/* Action Buttons for AdvoAI — hidden until the reply has actually
+            settled; showing "copy/like/share" on an empty, still-generating
+            bubble offers actions on content that doesn't exist yet. */}
+        {!isUser && !message.isStreaming && message.text && (
           <div className="mt-4 flex items-center gap-1 opacity-100 transition-opacity">
             <button
               onClick={handleCopy}
@@ -457,14 +480,39 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
             >
               {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
             </button>
-            <button className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors" aria-label="Mark as helpful" title="Helpful">
-              <ThumbsUp className="w-4 h-4" />
+            <button
+              onClick={() => handleFeedback('up')}
+              className={`p-1.5 rounded-md transition-colors ${
+                feedback === 'up'
+                  ? 'text-emerald-600 bg-emerald-500/10'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+              aria-pressed={feedback === 'up'}
+              aria-label="Mark as helpful"
+              title="Helpful"
+            >
+              <ThumbsUp className="w-4 h-4" fill={feedback === 'up' ? 'currentColor' : 'none'} />
             </button>
-            <button className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors" aria-label="Mark as not helpful" title="Not helpful">
-              <ThumbsDown className="w-4 h-4" />
+            <button
+              onClick={() => handleFeedback('down')}
+              className={`p-1.5 rounded-md transition-colors ${
+                feedback === 'down'
+                  ? 'text-red-500 bg-red-500/10'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+              aria-pressed={feedback === 'down'}
+              aria-label="Mark as not helpful"
+              title="Not helpful"
+            >
+              <ThumbsDown className="w-4 h-4" fill={feedback === 'down' ? 'currentColor' : 'none'} />
             </button>
-            <button className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors" aria-label="Share message" title="Share">
-              <Share2 className="w-4 h-4" />
+            <button
+              onClick={handleShare}
+              className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
+              aria-label="Share message"
+              title="Share"
+            >
+              {isShared ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
             </button>
           </div>
         )}

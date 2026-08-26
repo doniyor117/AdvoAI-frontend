@@ -648,7 +648,7 @@ export function ChatArea({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 md:px-8 py-4 md:py-8 z-0 relative flex flex-col pt-32"
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 md:px-8 py-4 md:py-8 z-0 relative flex flex-col pt-24"
       >
         {!isHydrated ? (
           <div className="flex-1 flex items-center justify-center">
@@ -728,9 +728,14 @@ export function ChatArea({
             </AnimatePresence>
 
             <div ref={messagesEndRef} />
-            <div className="text-center text-[10px] md:text-xs text-neutral-400 dark:text-neutral-500 pt-8 pb-4">
-              {t('chat.footer_disclaimer', { chatbot_name: t('chatbot_name') })}
-            </div>
+            {/* Hidden until the reply actually settles — showing it (and the
+                per-message action row) while still searching/streaming reads
+                as commenting on an answer that doesn't exist yet. */}
+            {!isLoading && !messages.some(m => m.isStreaming) && (
+              <div className="text-center text-[10px] md:text-xs text-neutral-400 dark:text-neutral-500 pt-8 pb-4">
+                {t('chat.footer_disclaimer', { chatbot_name: t('chatbot_name') })}
+              </div>
+            )}
           </div>
         )}
       </div>
