@@ -16,6 +16,7 @@ import { TextSelectionTooltip } from './TextSelectionTooltip';
 import { useRouter, useParams } from 'next/navigation';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from './ui/dropdown-menu';
 import { LoadingMark } from './LoadingMark';
+import { hasBootRevealPlayed, markBootRevealPlayed } from '@/lib/bootReveal';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -96,16 +97,16 @@ export function ChatArea({
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState('');
-  // The brand reveal only gets one honest first impression per browser
-  // session — on a cold app load we hold the loading state open until the
-  // mark finishes its build-up (LoadingMark's onEnded), even if data
-  // hydrates faster. Every later hydration in the same session/tab (chat
-  // switches, revisits) already has the flag set, so it skips straight to
-  // the static mark with no forced wait — "reload" gets the full reveal,
-  // routine navigation behaves normally.
-  const [bootRevealDone, setBootRevealDone] = useState(
-    () => typeof window !== 'undefined' && sessionStorage.getItem('advoai-boot-reveal-played') === '1'
-  );
+  // The brand reveal only gets one honest first impression per page load —
+  // on a cold boot the mark loops continuously (in case loading outlasts a
+  // single ~4s cycle) until data is ready AND at least one full loop has
+  // played, then we swap to real content. `startedStatic` is captured once
+  // at mount and never flips mid-flight — if a page load already showed the
+  // reveal once (this is a later remount from a chat switch, not a reload),
+  // this instance skips straight to the static mark instead of racing a
+  // second loop.
+  const startedStatic = useRef(hasBootRevealPlayed()).current;
+  const [bootRevealDone, setBootRevealDone] = useState(startedStatic);
   const titleMenuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -665,9 +666,10 @@ export function ChatArea({
           <div className="flex-1 flex items-center justify-center">
             <LoadingMark
               size={56}
-              static={bootRevealDone}
+              static={startedStatic}
+              loop={!startedStatic}
               onEnded={() => {
-                sessionStorage.setItem('advoai-boot-reveal-played', '1');
+                if (!startedStatic) markBootRevealPlayed();
                 setBootRevealDone(true);
               }}
             />
