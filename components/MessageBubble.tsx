@@ -333,9 +333,11 @@ interface MessageBubbleProps {
   onAttachmentClick?: (attachment: FileAttachment) => void;
 }
 
-/** Small rotating/pulsing indicator shown while an assistant reply is still
+/** Small rocking-scale indicator shown while an assistant reply is still
  *  generating — the trailing marker sits below the text exactly like Claude's,
- *  and doubles as the "give me a second" cue before any text has arrived yet. */
+ *  and doubles as the "give me a second" cue before any text has arrived yet.
+ *  It tilts side to side (never a full spin) and disappears the moment the
+ *  reply settles, rather than animating some separate "done" pose. */
 function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null }) {
   const { t } = useLanguage();
   const label = statusLabel ? t(`chat.status_${statusLabel}`) : null;
@@ -344,10 +346,9 @@ function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null
     <div className="flex items-center gap-2 mt-2 h-5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/advoai-logo.svg"
+        src="/advoai-scale.png"
         alt=""
-        className="w-4 h-4 animate-spin"
-        style={{ animationDuration: '2.4s' }}
+        className="w-4 h-4 scale-balance"
       />
       {label && (
         <span className="text-sm font-medium shimmer-text">{label}</span>

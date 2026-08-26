@@ -64,6 +64,29 @@
   100% { background-position: -50% 0; }
 }
 
+/* Generating indicator: the scale rocks — one pan dips, then the other —
+   instead of spinning in a full circle, and every loop returns to level
+   before tipping again, so it never freezes mid-tilt. */
+.scale-balance {
+  transform-origin: 50% 50%;
+  animation: scale-balance 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scale-balance {
+    animation: none;
+  }
+}
+
+@keyframes scale-balance {
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(-11deg); }
+  45% { transform: rotate(9deg); }
+  65% { transform: rotate(-5deg); }
+  85% { transform: rotate(3deg); }
+  100% { transform: rotate(0deg); }
+}
+
 @keyframes marquee {
   0% { transform: translateX(0%); }
   100% { transform: translateX(-50%); }
