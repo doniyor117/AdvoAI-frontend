@@ -347,9 +347,9 @@ function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null
     <div className="flex items-center gap-2 mt-2 h-5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/advoai-logo.svg"
+        src="/advoai-logo.png"
         alt=""
-        className="w-5 h-5 logo-bloom"
+        className="w-5 h-5 rounded-full logo-bloom"
       />
       {label && (
         <span className="text-sm font-medium shimmer-text">{label}</span>

@@ -199,7 +199,7 @@ export default function LoginPage() {
             {/* Right: Cover */}
             <div 
                 className="relative hidden lg:block bg-cover bg-center"
-                style={{ backgroundImage: "url('/login-background-img.png')" }}
+                style={{ backgroundImage: "url('/login-background-img.jpg')" }}
             >
                 {/* Decorative gradient overlay */}
                 <div className="absolute inset-0 bg-black/40" />

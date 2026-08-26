@@ -353,7 +353,7 @@ export default function SignupPage() {
             {/* Right: Cover */}
             <div 
                 className="relative hidden lg:block overflow-hidden bg-cover bg-center"
-                style={{ backgroundImage: "url('/login-background-img.png')" }}
+                style={{ backgroundImage: "url('/login-background-img.jpg')" }}
             >
                 <div className="absolute inset-0 bg-black/40" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-white z-10">
