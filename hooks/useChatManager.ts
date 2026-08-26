@@ -606,7 +606,24 @@ export function useChatManager(chatId?: string) {
       // resolve. Without this the screen sits blank — same layout, same
       // centered prompt UI — for however long that request takes, reading
       // as a stall rather than "your message was sent."
-      setMessages(prev => [...prev, newUserMsg]);
+      //
+      // The placeholder assistant bubble matters just as much as the user
+      // message: without it, ChatArea's generic "processing" indicator shows
+      // here, then the *destination* page's own sendToBackend call creates
+      // this exact "Thinking..." bubble from scratch a moment later — two
+      // different loading UIs shown back to back reads as the status going
+      // backward. Using the same placeholder shape on both sides of the
+      // navigation makes it one continuous state instead.
+      const placeholderAssistantMsg: Message = {
+        id: generateId(),
+        role: 'assistant',
+        text: '',
+        citations: [],
+        attachments: [],
+        isStreaming: true,
+        statusLabel: 'thinking',
+      };
+      setMessages(prev => [...prev, newUserMsg, placeholderAssistantMsg]);
       setIsHydrated(true);
       setIsLoading(true);
 
@@ -629,7 +646,7 @@ export function useChatManager(chatId?: string) {
         } catch (err) {
           console.error("Failed to create chat session", err);
           setInputValue(trimmed);
-          setMessages(prev => prev.filter(m => m.id !== newUserMsg.id));
+          setMessages(prev => prev.filter(m => m.id !== newUserMsg.id && m.id !== placeholderAssistantMsg.id));
           setIsLoading(false);
           isNavigatingRef.current = false;
           alert("Failed to create chat. Please check your connection or try again.");
