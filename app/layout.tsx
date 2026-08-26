@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Merriweather } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css'; // Global styles
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </LanguageProvider>
           </AuthProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
