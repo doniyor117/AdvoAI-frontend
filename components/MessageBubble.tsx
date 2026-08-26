@@ -3,9 +3,9 @@
 import React, { useState, memo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChevronRight, ChevronDown, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote, AlertCircle, Download, Scale, Globe } from 'lucide-react';
+import { ChevronRight, ChevronDown, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote, AlertCircle, Download, Scale, Globe, Sparkle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
+import { Message, Citation, FileAttachment, StreamStage } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePresignedUrl } from '@/hooks/usePresignedUrl';
 import { authFetch, downloadFile, downloadFileByKey } from '@/lib/authFetch';
@@ -333,6 +333,27 @@ interface MessageBubbleProps {
   onAttachmentClick?: (attachment: FileAttachment) => void;
 }
 
+/** Small rotating/pulsing indicator shown while an assistant reply is still
+ *  generating — the trailing marker sits below the text exactly like Claude's,
+ *  and doubles as the "give me a second" cue before any text has arrived yet. */
+function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null }) {
+  const { t } = useLanguage();
+  const label = statusLabel ? t(`chat.status_${statusLabel}`) : null;
+
+  return (
+    <div className="flex items-center gap-2 mt-2 h-5">
+      <Sparkle
+        className="w-4 h-4 text-primary animate-spin"
+        style={{ animationDuration: '2.2s' }}
+        fill="currentColor"
+      />
+      {label && (
+        <span className="text-sm text-slate-400 dark:text-slate-500">{label}</span>
+      )}
+    </div>
+  );
+}
+
 export const MessageBubble = memo(function MessageBubble({ message, onCitationClick, onAttachmentClick }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [isCopied, setIsCopied] = useState(false);
@@ -403,6 +424,10 @@ export const MessageBubble = memo(function MessageBubble({ message, onCitationCl
             {message.text}
           </ReactMarkdown>
         </div>
+
+        {!isUser && message.isStreaming && (
+          <GeneratingIndicator statusLabel={message.statusLabel} />
+        )}
 
         {message.citations && message.citations.length > 0 && (() => {
           const corpusCitations = message.citations.filter(c => (c.kind || 'corpus') === 'corpus');

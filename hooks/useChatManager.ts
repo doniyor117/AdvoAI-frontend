@@ -48,6 +48,11 @@ export function isAttachmentReady(a: FileAttachment): boolean {
 function serializeMessages(msgs: Message[]): Message[] {
   return msgs.map(msg => ({
     ...msg,
+    // A reload must never resurrect a mid-stream state — the connection that would
+    // ever clear it is gone. The persistence effect below already skips messages
+    // while isStreaming is true, but strip both defensively here too.
+    isStreaming: undefined,
+    statusLabel: undefined,
     attachments: msg.attachments?.map(a => ({
       ...a,
       local_url: undefined,
@@ -56,6 +61,11 @@ function serializeMessages(msgs: Message[]): Message[] {
   }));
 }
 
+/** Server-sent while the answer is still being generated — see the SSE `status`
+ *  event in chat.py's _generate_chat_stream. Matched against the
+ *  `chat.status_*` locale keys in MessageBubble. */
+export type StreamStage = 'thinking' | 'searching_corpus' | 'searching_web' | 'drafting';
+
 export type Message = {
   id: string;
   role: 'user' | 'assistant';
@@ -63,6 +73,11 @@ export type Message = {
   citations?: Citation[];
   attachments?: FileAttachment[];
   isError?: boolean;
+  /** True from the moment the placeholder assistant bubble is created until the
+   *  backend's terminal `done`/`error` SSE event arrives. */
+  isStreaming?: boolean;
+  /** Current SSE `status` stage, cleared as soon as the first answer text arrives. */
+  statusLabel?: StreamStage | null;
 };
 
 // ── Fingerprint (simple hash for guest tracking) ────────────
@@ -286,7 +301,11 @@ export function useChatManager(chatId?: string) {
       // throws mid-render; drop the citation bodies first, then give up gracefully.
       // Error bubbles are client-side fakes; caching them makes a transient failure look
       // like a permanent part of the conversation after a reload.
-      const persistable = messages.filter(m => !m.isError);
+      // Skip messages still mid-stream — writing on every delta chunk would thrash
+      // localStorage, and a reload should never resurrect a stream nothing will
+      // ever finish. Once isStreaming flips to false this effect fires again and
+      // persists the finished message normally.
+      const persistable = messages.filter(m => !m.isError && !m.isStreaming);
       if (persistable.length === 0) return;
       try {
         localStorage.setItem(storageKey, JSON.stringify(serializeMessages(persistable)));
@@ -328,7 +347,59 @@ export function useChatManager(chatId?: string) {
     }
   }, [inputValue, draftKey]);
 
+  // ── SSE parsing ────────────────────────────────────────────
+  // One SSE "frame" is `event: <name>\ndata: <json>\n\n`. The reader can split a
+  // frame across two chunks (or deliver several in one), so frames are buffered
+  // and only fully-terminated ones (ending in the blank-line separator) are parsed
+  // per read; whatever's left after the last separator is carried into the next.
+  function parseSseFrame(frame: string): { event: string; data: any } | null {
+    let eventName = 'message';
+    let dataStr = '';
+    for (const line of frame.split('\n')) {
+      if (line.startsWith('event:')) eventName = line.slice(6).trim();
+      else if (line.startsWith('data:')) dataStr += line.slice(5).trim();
+    }
+    if (!dataStr) return null;
+    try {
+      return { event: eventName, data: JSON.parse(dataStr) };
+    } catch {
+      return null;
+    }
+  }
+
+  function mapCitations(raw: Record<string, unknown>[] | undefined): Citation[] {
+    return (raw || []).map((c) => ({
+      id: c.id as string,
+      part_id: c.part_id as string | undefined,
+      title: (c.title as string) || 'Source',
+      text: (c.text as string) || '',
+      quote: c.quote as string | undefined,
+      source_url: (c.source_url as string) || '#',
+      kind: (c.kind as 'corpus' | 'web') || 'corpus',
+    }));
+  }
+
+  function mapAttachments(raw: Record<string, unknown>[] | undefined): FileAttachment[] {
+    // The backend attaches a file when the model called the generate_contract tool
+    // mid-conversation. Persisted to history either way, but without mapping it here
+    // too, the file card only appeared after a reload of the current turn's reply.
+    return (raw || []).map((a) => ({
+      document_id: a.document_id as string,
+      display_name: (a.display_name as string) || 'document',
+      mime_type: (a.mime_type as string) || '',
+      s3_key: a.s3_key as string | undefined,
+    }));
+  }
+
   // ── Send message to backend ───────────────────────────────
+  // Streams the answer over SSE (chat.py's _generate_chat_stream), writing directly
+  // into a placeholder assistant message this function creates and owns — the
+  // caller just awaits the resolved metadata (session id, final citations/
+  // attachments) needed for its own bookkeeping. On any failure the error is
+  // rendered into that same placeholder rather than thrown as a rejected message
+  // bubble the caller would have to push separately, EXCEPT an AbortError (the
+  // user navigated away mid-stream), which is re-thrown untouched so callers can
+  // keep their existing "ignore aborts" check.
   const sendToBackend = useCallback(async (
     question: string,
     currentSessionId: string | null,
@@ -339,7 +410,6 @@ export function useChatManager(chatId?: string) {
     sources?: Citation[];
     attachments?: FileAttachment[];
     session_id: string | null;
-    error?: string;
   }> => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -386,47 +456,99 @@ export function useChatManager(chatId?: string) {
     const controller = new AbortController();
     inFlightRef.current = controller;
 
-    const res = await authFetch('/api/chat/', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    const assistantId = generateId();
+    setMessages(prev => [...prev, {
+      id: assistantId,
+      role: 'assistant',
+      text: '',
+      citations: [],
+      attachments: [],
+      isStreaming: true,
+      statusLabel: 'thinking',
+    }]);
 
-    if (!res.ok) {
-      const errData = await safeJson(res).catch(() => ({}));
-      const detailMsg = typeof errData.detail === 'object' ? JSON.stringify(errData.detail) : (errData.detail || `Request failed (${res.status})`);
-      throw new Error(detailMsg);
+    const patchMsg = (patch: Partial<Message> | ((m: Message) => Partial<Message>)) => {
+      setMessages(prev => prev.map(m => m.id === assistantId
+        ? { ...m, ...(typeof patch === 'function' ? patch(m) : patch) }
+        : m));
+    };
+
+    let finalAnswer = '';
+    let finalCitations: Citation[] = [];
+    let finalAttachments: FileAttachment[] = [];
+    let sessionIdResult: string | null = null;
+
+    try {
+      const res = await authFetch('/api/chat/', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const errData = await safeJson(res).catch(() => ({}));
+        const detailMsg = typeof errData.detail === 'object' ? JSON.stringify(errData.detail) : (errData.detail || `Request failed (${res.status})`);
+        throw new Error(detailMsg);
+      }
+      if (!res.body) {
+        throw new Error('This browser does not support streamed responses.');
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const frames = buffer.split('\n\n');
+        buffer = frames.pop() || ''; // last (possibly incomplete) frame carries over
+
+        for (const raw of frames) {
+          if (!raw.trim()) continue;
+          const parsed = parseSseFrame(raw);
+          if (!parsed) continue;
+          const { event, data } = parsed;
+
+          if (event === 'status') {
+            patchMsg({ statusLabel: data.stage });
+          } else if (event === 'delta') {
+            finalAnswer += data.text;
+            patchMsg(m => ({ text: (m.text || '') + data.text, statusLabel: null }));
+          } else if (event === 'citations') {
+            finalCitations = mapCitations(data.citations);
+            patchMsg({ citations: finalCitations });
+          } else if (event === 'done') {
+            sessionIdResult = data.session_id || null;
+            finalAttachments = mapAttachments(data.attachments);
+            patchMsg({ isStreaming: false, statusLabel: null, attachments: finalAttachments });
+          } else if (event === 'error') {
+            throw new Error(data.detail || 'An error occurred. Please try again.');
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error)?.name === 'AbortError') throw err;
+      patchMsg({
+        isStreaming: false,
+        statusLabel: null,
+        isError: true,
+        text: `⚠️ ${(err as Error).message || 'An error occurred. Please try again.'}`,
+      });
+      // Swallowed here (not re-thrown): the error is already rendered into the
+      // placeholder bubble above, so callers only need the AbortError case, not a
+      // second error bubble of their own.
     }
 
-    const data = await safeJson(res);
-
-    // Map backend citations (parent documents) to frontend Citation type
-    const citations: Citation[] = (data.citations || []).map((c: Record<string, unknown>) => ({
-      id: c.id as string,
-      part_id: c.part_id as string | undefined,
-      title: (c.title as string) || 'Source',
-      text: (c.text as string) || '',
-      source_url: (c.source_url as string) || '#',
-      kind: (c.kind as 'corpus' | 'web') || 'corpus',
-    }));
-
-    // The backend attaches a file when the model called the generate_contract tool
-    // mid-conversation. Persisted to history either way, but without mapping it here
-    // too, the file card only appeared after a reload of the current turn's reply.
-    const attachments: FileAttachment[] = (data.attachments || []).map((a: Record<string, unknown>) => ({
-      document_id: a.document_id as string,
-      display_name: (a.display_name as string) || 'document',
-      mime_type: (a.mime_type as string) || '',
-      s3_key: a.s3_key as string | undefined,
-    }));
-
     return {
-      answer: data.answer,
-      citations,
-      sources: citations,
-      attachments,
-      session_id: data.session_id || null,
+      answer: finalAnswer,
+      citations: finalCitations,
+      sources: finalCitations,
+      attachments: finalAttachments,
+      session_id: sessionIdResult,
     };
   }, [useWebSearch]);
 
@@ -526,6 +648,11 @@ export function useChatManager(chatId?: string) {
     setAttachments([]);
     setIsLoading(true);
 
+    // sendToBackend owns the assistant bubble end-to-end (creates the streaming
+    // placeholder, patches it as SSE events arrive, and renders any failure into
+    // it directly) — this callback only needs the resolved session id for its own
+    // bookkeeping. AbortError (navigated away mid-stream) is the one case it still
+    // re-throws, since the bubble it was streaming into no longer matters here.
     sendToBackend(finalPrompt, sessionId, currentAttachments)
       .then(result => {
         if (result.session_id && currentChatId) {
@@ -535,26 +662,10 @@ export function useChatManager(chatId?: string) {
             localStorage.setItem(`advoai_session_${currentChatId}`, result.session_id);
           }
         }
-
-        const assistantMsg: Message = {
-          id: generateId(),
-          role: 'assistant',
-          text: result.answer,
-          citations: result.sources || [],
-          attachments: result.attachments,
-        };
-        setMessages(prev => [...prev, assistantMsg]);
       })
       .catch(err => {
-        // Aborted by navigation, not a real failure — see the note below.
+        // Aborted by navigation, not a real failure — nothing left to update.
         if (err?.name === 'AbortError') return;
-        const errorMsg: Message = {
-          id: generateId(),
-          role: 'assistant',
-          text: `⚠️ ${err.message || 'An error occurred. Please try again.'}`,
-          isError: true,
-        };
-        setMessages(prev => [...prev, errorMsg]);
       })
       .finally(() => {
         setIsLoading(false);
@@ -597,6 +708,8 @@ export function useChatManager(chatId?: string) {
       const backendSessionId = isAuthenticated ? chatId : null;
 
       setIsLoading(true);
+      // See the equivalent call in handleSendMessage above — sendToBackend owns the
+      // assistant bubble itself; this callback only needs the resolved session id.
       sendToBackend(pendingQuestion, backendSessionId, pendingAttachments)
         .then(result => {
           if (result.session_id) {
@@ -605,28 +718,12 @@ export function useChatManager(chatId?: string) {
               localStorage.setItem(`advoai_session_${chatId}`, result.session_id);
             }
           }
-
-          const assistantMsg: Message = {
-            id: generateId(),
-            role: 'assistant',
-            text: result.answer,
-            citations: result.sources || [],
-            attachments: result.attachments,
-          };
-          setMessages(prev => [...prev, assistantMsg]);
           clearPendingKeys();
         })
         .catch(err => {
           // We abort in-flight sends on navigation; that is not something to show
           // the user, and it would otherwise land in the chat they just opened.
           if (err?.name === 'AbortError') return;
-          const errorMsg: Message = {
-            id: generateId(),
-            role: 'assistant',
-            text: `⚠️ ${err.message || 'An error occurred. Please try again.'}`,
-            isError: true,
-          };
-          setMessages(prev => [...prev, errorMsg]);
         })
         .finally(() => {
           // Cleared only after the call settles, never before it. The document refs

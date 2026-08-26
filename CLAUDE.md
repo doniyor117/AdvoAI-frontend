@@ -27,20 +27,29 @@ For implementation detail beyond what's here, see the working plan: `/home/doniy
 
 ## To do (ship order)
 
-None — Batches 1–4 are complete and verified. Batch 5 (streaming) is deferred; see Findings for why.
+None — Batches 1–5 are complete. Batch 5 shipped as "status events + replayed deltas" (see below), a deliberate revision of the original token-streaming design; not yet committed/pushed (implemented, tested, and manually verified against the live backend — awaiting the user's go-ahead to commit).
 
-## Deferred — Batch 5 (streaming)
+## Batch 5 — status events + word-chunk replay (revised scope)
 
-Stopped before implementation, on review, not for lack of time. The plan's streaming design was written before Batches 2–3 existed and no longer fits what shipped:
+Genuine token-level streaming was scoped and rejected first — see the reasoning preserved below, since it still applies to `ask()` itself. What shipped instead: the full answer is still generated server-side in one shot (so tool-call detection, the hidden citation-quote block, and `ref_quotes` all work exactly as before Batch 5), then the *response* is streamed to the client two ways:
+
+- **`status` SSE events** ("searching_corpus" / "searching_web" / "drafting") fire before each slow step (`retrieve_context`, `perform_web_search`, `_run_generate_contract_tool`) so the wait is never silent — this is the actual latency-perception fix, and needed no change to `ask()`.
+- **`delta` SSE events** replay the finished answer in ~3-word chunks (`_stream_answer_text`, `chat.py`) with a small `asyncio.sleep` between them, purely for the incremental-reveal UX (styled after Claude's own reveal — word-by-word text plus a small rotating indicator that sits below the text while generating, `GeneratingIndicator` in `MessageBubble.tsx`). This is honestly a replay, not true streaming — documented as such, not hidden.
+- `citations` and `done` (terminal, carries session_id/model_used/intent/metadata/attachments) fire after the deltas, since both still depend on the complete answer.
+- `POST /api/chat/` is now `StreamingResponse` (`text/event-stream`); session/attachment-ownership validation stays in `ask_advoai` (still returns real 403/500 before the stream starts), everything else moved into `_generate_chat_stream`, whose own try/except turns a mid-generation failure into a terminal `error` SSE event instead of an HTTP error status (locked to 200 once headers are sent). `X-Accel-Buffering: no` is set so an nginx-fronted deployment (the HF Space) doesn't buffer the whole response before delivering it.
+- Frontend (`useChatManager.ts`): `sendToBackend` now owns the assistant message end-to-end — creates a placeholder (`isStreaming: true`), reads `res.body.getReader()`, and patches the message in place per SSE event; callers (`handleSendMessage`, the pending-question effect) only need the resolved `session_id` for their own bookkeeping. A message mid-stream is excluded from the localStorage persistence effect (would otherwise thrash on every chunk) and stripped of `isStreaming`/`statusLabel` by `serializeMessages` so a reload can never resurrect a stream nothing will finish.
+- Verified: full backend suite (93 tests, including two new SSE-contract tests in `test_chat_route.py`), `tsc --noEmit` clean, and a real end-to-end run against the live local backend (`curl -N` and a Node `fetch()` script using the exact same frame-parsing logic as the frontend) confirming the `status → delta × N → citations → done` event sequence over a real network connection with a real Gemini answer. **Not yet visually verified in an actual browser** — the Claude-in-Chrome extension was unavailable in this session, so the fade-in/indicator UI itself (as opposed to the data flowing correctly) has not been eyeballed. Worth a manual pass before calling the UI polish "confirmed," per the verify-before-done rule below.
+
+### Why true token-level streaming (of `ask()` itself) was rejected
+
+The plan's original design predates Batches 2–3 and no longer fits what shipped:
 
 - **`ask()` sends `tools=[generate_contract]` on every single call** — whether a response is prose or a function call is unknown until enough of the stream is consumed to tell, so any implementation must buffer first, not stream from byte one.
 - **The hidden `<!--CITATIONS:[...]-->` block (Batch 2) would render to the user** if raw deltas were streamed — it's stripped from the *complete* answer today; streaming needs the same tail-suppression, which means buffering the tail at minimum.
-- **Citations can no longer be sent "immediately."** The plan assumed citations were available pre-generation; since Batch 2 they depend on `ref_quotes`, parsed out of the finished answer. "Send citations first" and "citations reflect what was actually cited" are now in tension with no easy resolution (a provisional-then-replaced set adds real UI complexity for the sidebar).
-- **`_generate_with_retry`'s key-rotation/backoff ladder retries a *completed* call.** It has no way to retry or resume a half-emitted stream, so streaming would need its own separate failure-handling path for the main answer route — the single most critical route in the app.
+- **Citations can no longer be sent "immediately."** The plan assumed citations were available pre-generation; since Batch 2 they depend on `ref_quotes`, parsed out of the finished answer.
+- **`_generate_with_retry`'s key-rotation/backoff ladder retries a *completed* call.** It has no way to retry or resume a half-emitted stream.
 
-Taken together, honest "streaming" here would mean buffering the full response server-side, then replaying it as synthetic deltas — a large, risky refactor of the main chat route for no real latency win. Not worth it as specified.
-
-**If a real latency win is wanted later**, the actual complaint (long silent wait on web-search / contract-drafting turns) can be addressed with a `status` SSE event stream ("searching the corpus" / "searching the web" / "drafting your document...") that needs no change to `ask()` at all — a much smaller, separable piece of work. Revisit Batch 5 as "status events only," not token-level streaming, unless the tool-call and citation-block designs change first.
+Honest token-level streaming here would still mean buffering the full response server-side and replaying it — which is exactly what the status+replay design above does deliberately and transparently, instead of pretending otherwise.
 
 ## Findings
 

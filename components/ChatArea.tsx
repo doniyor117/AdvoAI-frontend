@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft, Quote, Globe } from 'lucide-react';
+import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft, Quote, Globe, Plus } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageBubble } from './MessageBubble';
@@ -91,6 +91,8 @@ export function ChatArea({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const lastScrollTop = useRef(0);
   const [isTitleMenuOpen, setIsTitleMenuOpen] = useState(false);
+  const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState('');
   const titleMenuRef = useRef<HTMLDivElement>(null);
@@ -190,6 +192,7 @@ export function ChatArea({
   }, [messages.length, getGreeting]);
 
   useClickOutside(titleMenuRef, () => setIsTitleMenuOpen(false), isTitleMenuOpen);
+  useClickOutside(toolsMenuRef, () => setIsToolsMenuOpen(false), isToolsMenuOpen);
 
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
@@ -416,32 +419,69 @@ export function ChatArea({
               e.target.value = ''; // Reset to allow same file re-upload
             }}
           />
-          <div className="flex items-center gap-1">
+          <div className="relative" ref={toolsMenuRef}>
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-white/10 active:scale-95"
-              aria-label="Attach file"
+              onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors active:scale-95 ${
+                isToolsMenuOpen
+                  ? 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
+              }`}
+              aria-label={t('chat.tools_menu')}
+              aria-expanded={isToolsMenuOpen}
             >
-              <Paperclip className="w-5 h-5" />
+              <Plus className={`w-5 h-5 transition-transform ${isToolsMenuOpen ? 'rotate-45' : ''}`} />
             </button>
 
-            {isAuthenticated && setUseWebSearch && (
-              <button
-                type="button"
-                onClick={() => setUseWebSearch(!useWebSearch)}
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors active:scale-95 ${
-                  useWebSearch
-                    ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground ring-1 ring-inset ring-primary/30'
-                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
-                }`}
-                title={useWebSearch ? t('chat.web_search_toggle_on', { chatbot_name: t('chatbot_name') }) : t('chat.web_search_toggle_off', { chatbot_name: t('chatbot_name') })}
-                aria-label={t('chat.web_search_toggle')}
-                aria-pressed={useWebSearch}
-              >
-                <Globe className="w-5 h-5" />
-              </button>
-            )}
+            <AnimatePresence>
+              {isToolsMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#1C2128] border border-black/5 dark:border-white/5 rounded-xl shadow-lg overflow-hidden z-50"
+                >
+                  <div className="p-1 flex flex-col">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                        setIsToolsMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-left"
+                    >
+                      <Paperclip className="w-4.5 h-4.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                      <span className="text-sm text-slate-700 dark:text-slate-200">{t('chat.attach_files')}</span>
+                    </button>
+
+                    {isAuthenticated && setUseWebSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setUseWebSearch(!useWebSearch)}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-left"
+                        aria-pressed={useWebSearch}
+                      >
+                        <Globe className="w-4.5 h-4.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                        <span className="text-sm text-slate-700 dark:text-slate-200 flex-1">{t('chat.web_search_toggle')}</span>
+                        <span
+                          className={`relative inline-flex w-9 h-5 flex-shrink-0 items-center rounded-full transition-colors ${
+                            useWebSearch ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block w-3.5 h-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
+                              useWebSearch ? 'translate-x-[18px]' : 'translate-x-1'
+                            }`}
+                          />
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="flex items-center gap-3">
@@ -668,7 +708,11 @@ export function ChatArea({
             ))}
 
             <AnimatePresence>
-              {isLoading && (
+              {/* Once the streaming assistant placeholder exists, its own inline
+                  indicator (MessageBubble) takes over — showing this one too would
+                  stack two spinners for the whole answer, not just the brief gap
+                  before the placeholder is created. */}
+              {isLoading && !messages.some(m => m.role === 'assistant' && m.isStreaming) && (
                 <motion.div
                   id="loading-indicator"
                   initial={{ opacity: 0, y: 10 }}
