@@ -64,30 +64,6 @@
   100% { background-position: -50% 0; }
 }
 
-/* Generating indicator: a circular reveal grows outward from the mark's own
-   center — the scale (which sits at the center of the full logo) resolves
-   first, then the star rays build up around it until the complete logo is
-   formed, then it retracts and repeats. Pure clip-path on the one combined
-   logo asset, so the reveal is always pixel-aligned with what it's revealing. */
-.logo-bloom {
-  animation: logo-bloom 2.6s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .logo-bloom {
-    animation: none;
-    clip-path: none;
-  }
-}
-
-@keyframes logo-bloom {
-  0% { clip-path: circle(0% at 50% 50%); }
-  35% { clip-path: circle(24% at 50% 50%); }
-  75% { clip-path: circle(60% at 50% 50%); }
-  88% { clip-path: circle(60% at 50% 50%); }
-  100% { clip-path: circle(0% at 50% 50%); }
-}
-
 @keyframes marquee {
   0% { transform: translateX(0%); }
   100% { transform: translateX(-50%); }
