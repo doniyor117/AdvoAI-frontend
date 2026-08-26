@@ -9,6 +9,7 @@ import { Message, Citation, FileAttachment, StreamStage } from '@/hooks/useChatM
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePresignedUrl } from '@/hooks/usePresignedUrl';
 import { authFetch, downloadFile, downloadFileByKey } from '@/lib/authFetch';
+import { LoadingMark } from '@/components/LoadingMark';
 
 /** A single attachment card — shows image thumbnail (local or from R2) or file-type card */
 /**
@@ -335,40 +336,15 @@ interface MessageBubbleProps {
 
 /** Small indicator shown while an assistant reply is still generating — the
  *  trailing marker sits below the text exactly like Claude's, and doubles as
- *  the "give me a second" cue before any text has arrived yet. Plays the
- *  brand reveal clip (scale resolves, then the star rays build up around it)
- *  once and holds on the settled mark rather than looping — a hard loop back
- *  to frame one would pop the star back out of existence, which reads as
- *  broken, not "thinking." Falls back to the static badge for
- *  prefers-reduced-motion and disappears the moment the reply settles. */
+ *  the "give me a second" cue before any text has arrived yet. Disappears
+ *  the moment the reply settles. */
 function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null }) {
   const { t } = useLanguage();
   const label = statusLabel ? t(`chat.status_${statusLabel}`) : null;
-  const [reduceMotion, setReduceMotion] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = (e: MediaQueryListEvent) => setReduceMotion(e.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
 
   return (
-    <div className="flex items-center gap-2 mt-2 h-7">
-      {reduceMotion ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/advoai-logo.png" alt="" className="w-7 h-7 rounded-full" />
-      ) : (
-        <video
-          src="/advoai-loading.mp4"
-          autoPlay
-          muted
-          playsInline
-          className="w-7 h-7 rounded-full object-cover"
-        />
-      )}
+    <div className="flex items-center gap-2 mt-2 h-10">
+      <LoadingMark size={40} />
       {label && (
         <span className="text-sm font-medium shimmer-text">{label}</span>
       )}
