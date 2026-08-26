@@ -3,7 +3,7 @@
 import React, { useState, memo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChevronRight, ChevronDown, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote, AlertCircle, Download, Scale, Globe, Sparkle } from 'lucide-react';
+import { ChevronRight, ChevronDown, Copy, ThumbsUp, ThumbsDown, Share2, Check, Quote, AlertCircle, Download, Scale, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Message, Citation, FileAttachment, StreamStage } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -342,13 +342,15 @@ function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null
 
   return (
     <div className="flex items-center gap-2 mt-2 h-5">
-      <Sparkle
-        className="w-4 h-4 text-primary animate-spin"
-        style={{ animationDuration: '2.2s' }}
-        fill="currentColor"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/advoai-logo.svg"
+        alt=""
+        className="w-4 h-4 animate-spin"
+        style={{ animationDuration: '2.4s' }}
       />
       {label && (
-        <span className="text-sm text-slate-400 dark:text-slate-500">{label}</span>
+        <span className="text-sm font-medium shimmer-text">{label}</span>
       )}
     </div>
   );
