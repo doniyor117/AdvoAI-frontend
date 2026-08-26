@@ -96,6 +96,16 @@ export function ChatArea({
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState('');
+  // The brand reveal only gets one honest first impression per browser
+  // session — on a cold app load we hold the loading state open until the
+  // mark finishes its build-up (LoadingMark's onEnded), even if data
+  // hydrates faster. Every later hydration in the same session/tab (chat
+  // switches, revisits) already has the flag set, so it skips straight to
+  // the static mark with no forced wait — "reload" gets the full reveal,
+  // routine navigation behaves normally.
+  const [bootRevealDone, setBootRevealDone] = useState(
+    () => typeof window !== 'undefined' && sessionStorage.getItem('advoai-boot-reveal-played') === '1'
+  );
   const titleMenuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -651,9 +661,16 @@ export function ChatArea({
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 md:px-8 py-4 md:py-8 z-0 relative flex flex-col pt-24"
       >
-        {!isHydrated ? (
+        {!isHydrated || !bootRevealDone ? (
           <div className="flex-1 flex items-center justify-center">
-            <LoadingMark size={56} />
+            <LoadingMark
+              size={56}
+              static={bootRevealDone}
+              onEnded={() => {
+                sessionStorage.setItem('advoai-boot-reveal-played', '1');
+                setBootRevealDone(true);
+              }}
+            />
           </div>
         ) : messages.length === 0 ? (
           <motion.div
