@@ -14,6 +14,7 @@ import { useSessions } from '@/hooks/useSessions';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { TextSelectionTooltip } from './TextSelectionTooltip';
 import { useRouter, useParams } from 'next/navigation';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from './ui/dropdown-menu';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -92,7 +93,6 @@ export function ChatArea({
   const lastScrollTop = useRef(0);
   const [isTitleMenuOpen, setIsTitleMenuOpen] = useState(false);
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
-  const toolsMenuRef = useRef<HTMLDivElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState('');
   const titleMenuRef = useRef<HTMLDivElement>(null);
@@ -192,7 +192,6 @@ export function ChatArea({
   }, [messages.length, getGreeting]);
 
   useClickOutside(titleMenuRef, () => setIsTitleMenuOpen(false), isTitleMenuOpen);
-  useClickOutside(toolsMenuRef, () => setIsToolsMenuOpen(false), isToolsMenuOpen);
 
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
@@ -419,70 +418,61 @@ export function ChatArea({
               e.target.value = ''; // Reset to allow same file re-upload
             }}
           />
-          <div className="relative" ref={toolsMenuRef}>
-            <button
-              type="button"
-              onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors active:scale-95 ${
-                isToolsMenuOpen
-                  ? 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
-              }`}
-              aria-label={t('chat.tools_menu')}
-              aria-expanded={isToolsMenuOpen}
+          <DropdownMenu open={isToolsMenuOpen} onOpenChange={setIsToolsMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors active:scale-95 ${
+                  isToolsMenuOpen
+                    ? 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
+                }`}
+                aria-label={t('chat.tools_menu')}
+                aria-expanded={isToolsMenuOpen}
+              >
+                <Plus className={`w-5 h-5 transition-transform ${isToolsMenuOpen ? 'rotate-45' : ''}`} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              side="top"
+              align="start"
+              sideOffset={8}
+              className="w-64 bg-white dark:bg-[#1C2128] border-black/5 dark:border-white/5 rounded-xl shadow-lg p-1"
             >
-              <Plus className={`w-5 h-5 transition-transform ${isToolsMenuOpen ? 'rotate-45' : ''}`} />
-            </button>
+              <DropdownMenuItem
+                onSelect={() => fileInputRef.current?.click()}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-left cursor-pointer"
+              >
+                <Paperclip className="w-4.5 h-4.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                <span className="text-sm text-slate-700 dark:text-slate-200">{t('chat.attach_files')}</span>
+              </DropdownMenuItem>
 
-            <AnimatePresence>
-              {isToolsMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 5, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#1C2128] border border-black/5 dark:border-white/5 rounded-xl shadow-lg overflow-hidden z-50"
+              {isAuthenticated && setUseWebSearch && (
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setUseWebSearch(!useWebSearch);
+                  }}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-left cursor-pointer"
+                  aria-pressed={useWebSearch}
                 >
-                  <div className="p-1 flex flex-col">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        fileInputRef.current?.click();
-                        setIsToolsMenuOpen(false);
-                      }}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-left"
-                    >
-                      <Paperclip className="w-4.5 h-4.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                      <span className="text-sm text-slate-700 dark:text-slate-200">{t('chat.attach_files')}</span>
-                    </button>
-
-                    {isAuthenticated && setUseWebSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setUseWebSearch(!useWebSearch)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-left"
-                        aria-pressed={useWebSearch}
-                      >
-                        <Globe className="w-4.5 h-4.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                        <span className="text-sm text-slate-700 dark:text-slate-200 flex-1">{t('chat.web_search_toggle')}</span>
-                        <span
-                          className={`relative inline-flex w-9 h-5 flex-shrink-0 items-center rounded-full transition-colors ${
-                            useWebSearch ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block w-3.5 h-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
-                              useWebSearch ? 'translate-x-[18px]' : 'translate-x-1'
-                            }`}
-                          />
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
+                  <Globe className="w-4.5 h-4.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                  <span className="text-sm text-slate-700 dark:text-slate-200 flex-1">{t('chat.web_search_toggle')}</span>
+                  <span
+                    className={`relative inline-flex w-9 h-5 flex-shrink-0 items-center rounded-full transition-colors ${
+                      useWebSearch ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block w-3.5 h-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
+                        useWebSearch ? 'translate-x-[18px]' : 'translate-x-1'
+                      }`}
+                    />
+                  </span>
+                </DropdownMenuItem>
               )}
-            </AnimatePresence>
-          </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="flex items-center gap-3">
             <button
