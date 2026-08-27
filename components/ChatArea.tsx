@@ -132,7 +132,10 @@ export function ChatArea({
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
   const lastUserMessageIndex = messages.reduce((acc, m, i) => (m.role === 'user' ? i : acc), -1);
-  const generatedFileCount = messages.filter(m => m.role === 'assistant').reduce((acc, m) => acc + (m.attachments?.length || 0), 0);
+  // Gates the Files button — counts BOTH generated and user-uploaded attachments
+  // now that the panel lists both (previously assistant-only, so the button
+  // stayed disabled for a chat that only had user uploads to show).
+  const totalFileCount = messages.reduce((acc, m) => acc + (m.attachments?.length || 0), 0);
 
   const handleQuoteSelection = (text: string) => {
     if (setQuotedText) {
@@ -675,7 +678,7 @@ export function ChatArea({
             <div className="flex items-center gap-1 flex-shrink-0">
               <button
                 onClick={() => setIsFilesPanelOpen(o => !o)}
-                disabled={generatedFileCount === 0}
+                disabled={totalFileCount === 0}
                 className="p-2 text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30 disabled:pointer-events-none"
                 aria-label="Files"
                 title="Files"
@@ -837,6 +840,12 @@ export function ChatArea({
         isOpen={isFilesPanelOpen}
         onClose={() => setIsFilesPanelOpen(false)}
         messages={messages}
+        // Close this panel on click too — otherwise the InsightPanel/fullscreen
+        // viewer it just opened renders underneath this one, invisible.
+        onAttachmentClick={(file) => {
+          onAttachmentClick?.(file);
+          setIsFilesPanelOpen(false);
+        }}
       />
     )}
     </>

@@ -952,7 +952,13 @@ export function useChatManager(chatId?: string) {
   const handleAttachmentClick = useCallback((attachment: FileAttachment) => {
     setActiveAttachment(attachment);
     setActiveCitation(null);
-    setIsInsightOpen(true);
+    // An image attachment already gets its own dedicated fullscreen viewer
+    // (page.tsx / chat/[id]/page.tsx render it whenever activeAttachment is an
+    // image, independent of this flag) — opening the InsightPanel sidebar too
+    // used to show both viewers stacked on top of each other for every image.
+    // Non-image files still only ever have the InsightPanel as a viewer.
+    const isImage = (attachment.mime_type || '').startsWith('image/');
+    setIsInsightOpen(!isImage);
   }, []);
 
   const closeInsightPanel = useCallback(() => {

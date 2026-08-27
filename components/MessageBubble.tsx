@@ -15,22 +15,17 @@ import { usePresignedUrl } from '@/hooks/usePresignedUrl';
 import { authFetch, downloadFile, downloadFileByKey } from '@/lib/authFetch';
 import { LoadingMark } from '@/components/LoadingMark';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { fileExtension, getFileIconSrc } from '@/lib/fileIcons';
 
 /** A single attachment card — shows image thumbnail (local or from R2) or file-type card */
 /**
  * A document AdvoAI produced, offered as a download.
  * Uses the same presigned-URL endpoint that powers attachment previews.
  */
-const FILE_ICON_SRC: Record<string, string> = {
-  DOC: '/icons/files/docx.svg',
-  DOCX: '/icons/files/docx.svg',
-  PDF: '/icons/files/pdf.svg',
-};
-
 function GeneratedFileCard({ file, onAttachmentClick }: { file: FileAttachment; onAttachmentClick?: (f: FileAttachment) => void }) {
   const url = usePresignedUrl(file);
-  const ext = file.display_name.split('.').pop()?.toUpperCase() || 'DOC';
-  const iconSrc = FILE_ICON_SRC[ext] || '/icons/files/generic.svg';
+  const ext = fileExtension(file.display_name);
+  const iconSrc = getFileIconSrc(file.display_name);
 
   return (
     <button
