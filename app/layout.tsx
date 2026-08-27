@@ -6,6 +6,7 @@ import './globals.css'; // Global styles
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { DocumentTitleSync } from '@/components/DocumentTitleSync';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
             <LanguageProvider>
+              <DocumentTitleSync />
               {children}
             </LanguageProvider>
           </AuthProvider>
