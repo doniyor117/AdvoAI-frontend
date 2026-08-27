@@ -168,9 +168,16 @@ export function DocxViewer({ url, displayName, s3Key }: DocxViewerProps) {
           full unscaled height/width, leaving dead space). Width left at 100% —
           it's already sized to match `available` by construction (scale =
           available / natural), so the scaled child lines up flush, not centered
-          — no more of the earlier cutoff-on-the-left trap. */}
+          — no more of the earlier cutoff-on-the-left trap.
+          Deliberately never `display:none`/`hidden` here (that was the previous
+          bug): renderAsync populates containerRef, then this component measures
+          its real scrollWidth/scrollHeight in the SAME synchronous callback,
+          before React has committed a re-render. A display:none ancestor at that
+          instant skips layout entirely, so the measurement reads 0 — which
+          collapsed this wrapper's height to `naturalSize.height * scale` = 0,
+          rendering nothing at all. Emptiness while loading already comes for
+          free: containerRef has no children until renderAsync populates it. */}
       <div
-        className={status === 'ready' ? '' : 'hidden'}
         style={naturalSize ? { width: '100%', height: naturalSize.height * scale, overflow: 'hidden' } : undefined}
       >
         <div
