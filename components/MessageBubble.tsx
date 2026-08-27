@@ -21,9 +21,16 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
  * A document AdvoAI produced, offered as a download.
  * Uses the same presigned-URL endpoint that powers attachment previews.
  */
+const FILE_ICON_SRC: Record<string, string> = {
+  DOC: '/icons/files/docx.svg',
+  DOCX: '/icons/files/docx.svg',
+  PDF: '/icons/files/pdf.svg',
+};
+
 function GeneratedFileCard({ file, onAttachmentClick }: { file: FileAttachment; onAttachmentClick?: (f: FileAttachment) => void }) {
   const url = usePresignedUrl(file);
   const ext = file.display_name.split('.').pop()?.toUpperCase() || 'DOC';
+  const iconSrc = FILE_ICON_SRC[ext] || '/icons/files/generic.svg';
 
   return (
     <button
@@ -31,17 +38,16 @@ function GeneratedFileCard({ file, onAttachmentClick }: { file: FileAttachment; 
       onClick={() => onAttachmentClick?.(file)}
       className="flex items-center gap-3 w-full max-w-md text-left rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#141414] px-4 py-3 shadow-sm hover:border-black/20 dark:hover:border-white/20 transition-colors"
     >
-      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex-shrink-0">
-        <span className="text-[10px] font-extrabold tracking-wide text-blue-600 dark:text-blue-400">
-          {ext.slice(0, 4)}
-        </span>
+      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 dark:bg-white/5 flex-shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={iconSrc} alt="" className="w-6 h-6" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
           {file.display_name}
         </p>
         <p className="text-xs text-slate-400">
-          {ext === 'DOCX' ? 'Word document' : ext === 'PDF' ? 'PDF document' : ext}
+          {ext}
         </p>
       </div>
       {url ? (
@@ -395,7 +401,7 @@ function GeneratingIndicator({ statusLabel }: { statusLabel?: StreamStage | null
 
   return (
     <div className="flex items-center gap-2 mt-2 h-10">
-      <LoadingMark size={40} />
+      <LoadingMark size={40} loop />
       {label && (
         <span className="text-sm font-medium shimmer-text">{label}</span>
       )}
@@ -418,17 +424,33 @@ export const MessageBubble = memo(function MessageBubble({
   const [editValue, setEditValue] = useState(message.text);
   const [showUserActions, setShowUserActions] = useState(false);
   const bubbleTextRef = useRef<HTMLDivElement>(null);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { t, lang } = useLanguage();
 
   useEffect(() => {
     if (!readOnly && message.rootId && message.variantCount === undefined) {
       fetchVariantInfo?.(message);
     }
-    // Only re-check when the identity of the message (or its known chain) changes —
-    // not on every text/citations patch while it's still streaming.
+    // Re-check whenever the message's known chain changes too — setActiveVariant
+    // replaces `messages` wholesale from a fresh history fetch, whose rows carry
+    // no variantIndex/variantCount, so without this the switcher would silently
+    // vanish after a single switch instead of re-resolving.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [message.id, message.rootId, readOnly]);
+  }, [message.id, message.rootId, message.variantCount, readOnly]);
+
+  // Tap-to-reveal (mobile) for the user-message action row: a tap on the bubble
+  // toggles it, and a pointerdown anywhere outside this message closes it —
+  // covers both "tap elsewhere" and "tap another message" without lifting state.
+  useEffect(() => {
+    if (!isUser || !showUserActions) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowUserActions(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [isUser, showUserActions]);
 
   useEffect(() => {
     return () => {
@@ -506,18 +528,10 @@ export const MessageBubble = memo(function MessageBubble({
   const canRedo = isAuthenticated && !readOnly && !isUser && !message.isStreaming && message.text;
   const canEdit = isAuthenticated && !readOnly && isUser && isLatestUserMessage && !!nextMessage;
 
-  // Long-press (mobile) reveal for the user-message action row — CSS :hover
-  // doesn't fire on touch, so a ~500ms touchstart/touchend timer stands in.
-  const handleTouchStart = () => {
-    longPressTimer.current = setTimeout(() => setShowUserActions(true), 500);
-  };
-  const handleTouchEnd = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-  };
-
   return (
     <motion.div
       id={`message-${message.id}`}
+      ref={containerRef}
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
@@ -539,19 +553,13 @@ export const MessageBubble = memo(function MessageBubble({
         </div>
       )}
 
-      {!isUser && message.attachments && message.attachments.length > 0 && (
-        <div className="flex flex-col gap-2 mb-3 w-full px-6 md:px-8">
-          {message.attachments.map((file, idx) => (
-            <GeneratedFileCard key={idx} file={file} onAttachmentClick={onAttachmentClick} />
-          ))}
-        </div>
-      )}
-
       {/* ── Text bubble — swapped out for the inline edit textarea (rendered
           further below, in the user-actions block) while editing a user
           message, rather than showing stale text alongside the editor. ── */}
-      {!(isUser && isEditing) && <div className={`${isUser
-          ? 'w-fit max-w-[85%] md:max-w-2xl bg-secondary text-secondary-foreground rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm'
+      {!(isUser && isEditing) && <div
+        onClick={isUser && !readOnly ? () => setShowUserActions(prev => !prev) : undefined}
+        className={`${isUser
+          ? 'w-fit max-w-[85%] md:max-w-2xl bg-secondary text-secondary-foreground rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-sm cursor-pointer md:cursor-auto'
           : message.isError
             // isError was set but never read, so failures looked identical to answers.
             ? 'w-full rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/70 dark:bg-red-900/15 pt-3 pb-4 px-6 md:px-8 md:pt-4 md:pb-6'
@@ -575,6 +583,14 @@ export const MessageBubble = memo(function MessageBubble({
 
         {!isUser && message.isStreaming && (
           <GeneratingIndicator statusLabel={message.statusLabel} />
+        )}
+
+        {!isUser && !message.isStreaming && message.attachments && message.attachments.length > 0 && (
+          <div className="flex flex-col gap-2 mt-4 w-full">
+            {message.attachments.map((file, idx) => (
+              <GeneratedFileCard key={idx} file={file} onAttachmentClick={onAttachmentClick} />
+            ))}
+          </div>
         )}
 
         {message.citations && message.citations.length > 0 && (() => {
@@ -677,14 +693,13 @@ export const MessageBubble = memo(function MessageBubble({
       </div>}
 
       {/* ── User message actions: Edit + Copy — hidden by default, revealed on
-          hover (desktop) or long-press (mobile), unlike the assistant row above
-          which is always visible. Answer-quality actions (thumbs/redo/report/
-          listen) don't apply to the user's own text. ── */}
+          hover (desktop) or a tap on the bubble itself (mobile — the row is a
+          thin strip when hidden, too small a target to press-and-hold on),
+          unlike the assistant row above which is always visible. Answer-quality
+          actions (thumbs/redo/report/listen) don't apply to the user's own text. ── */}
       {isUser && !readOnly && (
         <div
           className="group/user relative mt-1.5 max-w-[85%] md:max-w-2xl"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
           onMouseLeave={() => setShowUserActions(false)}
           onMouseEnter={() => setShowUserActions(true)}
         >

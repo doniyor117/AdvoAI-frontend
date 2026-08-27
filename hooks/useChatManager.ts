@@ -631,7 +631,7 @@ export function useChatManager(chatId?: string) {
   const regenerateMessage = useCallback(async (assistantMessageId: string) => {
     if (!isAuthenticated || !sessionId) return;
     setMessages(prev => prev.map(m => m.id === assistantMessageId
-      ? { ...m, isStreaming: true, statusLabel: 'thinking', text: '', citations: [] }
+      ? { ...m, isStreaming: true, statusLabel: 'thinking', text: '', citations: [], attachments: [] }
       : m));
     try {
       const res = await authFetch(`/api/sessions/${sessionId}/messages/${assistantMessageId}/regenerate`, {
@@ -692,7 +692,7 @@ export function useChatManager(chatId?: string) {
     if (!isAuthenticated || !sessionId) return;
     setMessages(prev => prev.map(m => {
       if (m.id === userMessageId) return { ...m, text: newText };
-      if (m.id === assistantMessageId) return { ...m, isStreaming: true, statusLabel: 'thinking', text: '', citations: [] };
+      if (m.id === assistantMessageId) return { ...m, isStreaming: true, statusLabel: 'thinking', text: '', citations: [], attachments: [] };
       return m;
     }));
     try {

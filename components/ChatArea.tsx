@@ -597,7 +597,7 @@ export function ChatArea({
                 </div>
               )
             ) : (
-              <div className="relative flex-1 flex items-center" ref={titleMenuRef}>
+              <div className="relative flex-1 min-w-0 flex items-center" ref={titleMenuRef}>
                 {isEditingTitle ? (
                   <input
                     ref={titleInputRef}
@@ -614,9 +614,9 @@ export function ChatArea({
                 ) : (
                   <button
                     onClick={() => setIsTitleMenuOpen(!isTitleMenuOpen)}
-                    className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-slate-600 dark:text-slate-300 group max-w-full"
+                    className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-slate-600 dark:text-slate-300 group min-w-0 max-w-full"
                   >
-                    <h1 className="font-medium text-[15px] truncate">
+                    <h1 className="font-medium text-[15px] truncate min-w-0">
                       {displayTitle}
                     </h1>
                     {isPinned && <Star className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 fill-amber-500" />}
@@ -792,7 +792,7 @@ export function ChatArea({
                   className="flex flex-col justify-start py-4 md:py-6 mb-2 md:mb-0 scroll-mt-24 md:scroll-mt-28"
                 >
                   <div className="bg-transparent text-slate-500 dark:text-slate-400 flex items-center gap-3 pl-1 md:pl-0">
-                    <LoadingMark size={40} />
+                    <LoadingMark size={40} loop />
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                         {t('chat.processing', { chatbot_name: t('chatbot_name') })}

@@ -14,9 +14,11 @@ interface LoadingMarkProps {
    *  holding on the settled mark after one play — for a dedicated loading
    *  screen that might outlast a single ~4s cycle. `onEnded` still fires
    *  exactly once, on the first cycle, so "wait for one full loop" gating
-   *  logic doesn't need to know this is looping underneath. Off by default:
-   *  a small inline indicator (e.g. the chat "thinking" mark) settling once
-   *  reads as resolving; looping it would just be restless. */
+   *  logic doesn't need to know this is looping underneath. Off by default;
+   *  turn it on for any indicator tied to an indeterminate, possibly-long
+   *  wait (e.g. `GeneratingIndicator` in MessageBubble.tsx) — there, settling
+   *  after one ~4s cycle while generation is still ongoing reads as stuck,
+   *  not resolved. Leave off for a one-shot reveal that's actually done. */
   loop?: boolean;
   /** Fires once the mark has visibly finished its first cycle — on video
    *  `ended` (before any loop-triggered restart), or immediately for the
