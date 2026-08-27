@@ -25,8 +25,19 @@ const RENDER_TIMEOUT_MS = 20_000;
  */
 export function DocxViewer({ url, displayName, s3Key }: DocxViewerProps) {
   const { t } = useLanguage();
+  const rootRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'unsupported'>('loading');
+  // The page's own natural (unscaled) size in px, measured once right after
+  // render — docx-preview lays out each page at the Word document's real page
+  // width (e.g. ~816px for Letter), which is what made the panel's own
+  // scrollable width fixed regardless of how wide the sidebar was dragged.
+  // `scale` maps that fixed width onto whatever's actually available, applied
+  // as a CSS transform (so text/tables shrink as a unit like a PDF page,
+  // rather than reflowing), recomputed live via ResizeObserver so dragging the
+  // sidebar rescales it continuously — matching PdfViewer's own auto-fit.
+  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
+  const [scale, setScale] = useState(1);
 
   // Legacy .doc is CFBF binary, not an OOXML zip — docx-preview can never parse it.
   const isLegacyDoc = /\.doc$/i.test(displayName) && !/\.docx$/i.test(displayName);
@@ -66,7 +77,25 @@ export function DocxViewer({ url, displayName, s3Key }: DocxViewerProps) {
           ignoreHeight: false,
           breakPages: true,
         });
-        if (!cancelled) setStatus('ready');
+        if (cancelled) return;
+        // Measure the natural (pre-transform) size once, from the real DOM
+        // docx-preview just built — transforms never affect layout size, so this
+        // has to happen before any scale is applied, not derived from it. Scale
+        // is computed right here too (not left for the ResizeObserver effect to
+        // catch up on its next tick), so status flips to 'ready' with the
+        // correct fit-width scale already applied — no one-frame flash at 1x.
+        const wrapperEl = containerRef.current.querySelector<HTMLElement>('.docx-preview-wrapper');
+        if (wrapperEl) {
+          const size = { width: wrapperEl.scrollWidth, height: wrapperEl.scrollHeight };
+          setNaturalSize(size);
+          if (rootRef.current && size.width > 0) {
+            const cs = getComputedStyle(rootRef.current);
+            const paddingX = parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0');
+            const available = rootRef.current.clientWidth - paddingX;
+            if (available > 0) setScale(available / size.width);
+          }
+        }
+        setStatus('ready');
       } catch (err) {
         if (cancelled) return;
         console.error('DocxViewer render failed:', err);
@@ -82,6 +111,25 @@ export function DocxViewer({ url, displayName, s3Key }: DocxViewerProps) {
       clearTimeout(timeoutId);
     };
   }, [url, s3Key, isLegacyDoc]);
+
+  // Recomputes the fit-width scale whenever the panel itself is resized (the
+  // sidebar drag-handle) — reads the ROOT's content-box width (clientWidth minus
+  // its own padding, via computed style rather than a hardcoded px guess, since
+  // that padding is responsive: p-3 on mobile, md:p-6 from that breakpoint up).
+  useEffect(() => {
+    if (!naturalSize || naturalSize.width <= 0 || !rootRef.current) return;
+    const el = rootRef.current;
+    const update = () => {
+      const cs = getComputedStyle(el);
+      const paddingX = parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0');
+      const available = el.clientWidth - paddingX;
+      if (available > 0) setScale(available / naturalSize.width);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [naturalSize]);
 
   if (isLegacyDoc || status === 'error') {
     return (
@@ -108,33 +156,36 @@ export function DocxViewer({ url, displayName, s3Key }: DocxViewerProps) {
   }
 
   return (
-    <div className="w-full h-full overflow-auto rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/20 p-3 md:p-6">
+    <div ref={rootRef} className="w-full h-full overflow-auto rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-black/20 p-3 md:p-6">
       {status === 'loading' && (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-400">
           <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
           <p className="text-sm">{t('insight.loading_preview')}</p>
         </div>
       )}
+      {/* Reserves exactly the SCALED footprint (transforms don't affect layout
+          size, so without this the scroll area would still reflect the page's
+          full unscaled height/width, leaving dead space). Width left at 100% —
+          it's already sized to match `available` by construction (scale =
+          available / natural), so the scaled child lines up flush, not centered
+          — no more of the earlier cutoff-on-the-left trap. */}
       <div
-        ref={containerRef}
-        // docx-preview's own injected stylesheet centers each page with
-        // `align-items: center` on a horizontal flex axis. The generated wrapper's
-        // real class is `${className}-wrapper` / page sections are `${className}`
-        // (className: 'docx-preview' is passed to renderAsync below) — i.e. the
-        // actual DOM classes are `docx-preview-wrapper` / `docx-preview`, NOT
-        // `docx-wrapper` / `docx`. An earlier pass targeted the latter, which never
-        // matched anything (Tailwind's `[&_.X]` is an exact class-token selector,
-        // not a substring match), so the override silently did nothing. When a
-        // page is wider than this panel, the overflow the real centering pushes
-        // off the LEFT edge sits at a scroll position no scrollbar can ever reach
-        // (a known flexbox centering-overflow trap), which read as "the left side
-        // is cut off and unreachable." Left-aligning instead makes 100% of a wide
-        // page reachable by scrolling right, matching how the PDF viewer already
-        // scales to always stay fully visible. Its `padding: 30px` (on top of this
-        // container's own p-3/md:p-6) doubled up the empty framing above/below the
-        // page into a visible gray/black band, so that's zeroed out here too.
-        className={`docx-preview-container max-w-full shadow-lg [&_.docx-preview-wrapper]:!bg-transparent [&_.docx-preview-wrapper]:!items-start [&_.docx-preview-wrapper]:!p-0 [&_.docx-preview]:!bg-white [&_.docx-preview]:!shadow-none ${status === 'ready' ? '' : 'hidden'}`}
-      />
+        className={status === 'ready' ? '' : 'hidden'}
+        style={naturalSize ? { width: '100%', height: naturalSize.height * scale, overflow: 'hidden' } : undefined}
+      >
+        <div
+          ref={containerRef}
+          // docx-preview's own injected stylesheet centers each page with
+          // `align-items: center` on a horizontal flex axis. The generated wrapper's
+          // real class is `${className}-wrapper` / page sections are `${className}`
+          // (className: 'docx-preview' is passed to renderAsync below) — i.e. the
+          // actual DOM classes are `docx-preview-wrapper` / `docx-preview`, NOT
+          // `docx-wrapper` / `docx`. Left-aligning (rather than the library's own
+          // centering) keeps this predictable once transform-scaled below.
+          className="docx-preview-container shadow-lg [&_.docx-preview-wrapper]:!bg-transparent [&_.docx-preview-wrapper]:!items-start [&_.docx-preview-wrapper]:!p-0 [&_.docx-preview]:!bg-white [&_.docx-preview]:!shadow-none"
+          style={naturalSize ? { width: naturalSize.width, transform: `scale(${scale})`, transformOrigin: 'top left' } : undefined}
+        />
+      </div>
     </div>
   );
 }
