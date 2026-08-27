@@ -118,16 +118,22 @@ export function DocxViewer({ url, displayName, s3Key }: DocxViewerProps) {
       <div
         ref={containerRef}
         // docx-preview's own injected stylesheet centers each page with
-        // `align-items: center` on a horizontal flex axis (.docx-wrapper) — when a
-        // page is wider than this panel, the overflow it pushes off the LEFT edge
-        // sits at a negative scroll position no scrollbar can ever reach (a known
-        // flexbox-centering-overflow trap), which read as "the left side is cut off
-        // and unreachable." Left-aligning instead makes 100% of a wide page
-        // reachable by scrolling right, matching how the PDF viewer already scales
-        // to always stay fully visible. Its `padding: 30px` (on top of this
+        // `align-items: center` on a horizontal flex axis. The generated wrapper's
+        // real class is `${className}-wrapper` / page sections are `${className}`
+        // (className: 'docx-preview' is passed to renderAsync below) — i.e. the
+        // actual DOM classes are `docx-preview-wrapper` / `docx-preview`, NOT
+        // `docx-wrapper` / `docx`. An earlier pass targeted the latter, which never
+        // matched anything (Tailwind's `[&_.X]` is an exact class-token selector,
+        // not a substring match), so the override silently did nothing. When a
+        // page is wider than this panel, the overflow the real centering pushes
+        // off the LEFT edge sits at a scroll position no scrollbar can ever reach
+        // (a known flexbox centering-overflow trap), which read as "the left side
+        // is cut off and unreachable." Left-aligning instead makes 100% of a wide
+        // page reachable by scrolling right, matching how the PDF viewer already
+        // scales to always stay fully visible. Its `padding: 30px` (on top of this
         // container's own p-3/md:p-6) doubled up the empty framing above/below the
         // page into a visible gray/black band, so that's zeroed out here too.
-        className={`docx-preview-container max-w-full shadow-lg [&_.docx-wrapper]:!bg-transparent [&_.docx-wrapper]:!items-start [&_.docx-wrapper]:!p-0 [&_.docx]:!bg-white [&_.docx]:!shadow-none ${status === 'ready' ? '' : 'hidden'}`}
+        className={`docx-preview-container max-w-full shadow-lg [&_.docx-preview-wrapper]:!bg-transparent [&_.docx-preview-wrapper]:!items-start [&_.docx-preview-wrapper]:!p-0 [&_.docx-preview]:!bg-white [&_.docx-preview]:!shadow-none ${status === 'ready' ? '' : 'hidden'}`}
       />
     </div>
   );
