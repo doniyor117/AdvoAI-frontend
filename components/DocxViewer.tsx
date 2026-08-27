@@ -117,7 +117,17 @@ export function DocxViewer({ url, displayName, s3Key }: DocxViewerProps) {
       )}
       <div
         ref={containerRef}
-        className={`docx-preview-container mx-auto max-w-full shadow-lg [&_.docx-wrapper]:!bg-transparent [&_.docx]:!bg-white [&_.docx]:!shadow-none ${status === 'ready' ? '' : 'hidden'}`}
+        // docx-preview's own injected stylesheet centers each page with
+        // `align-items: center` on a horizontal flex axis (.docx-wrapper) — when a
+        // page is wider than this panel, the overflow it pushes off the LEFT edge
+        // sits at a negative scroll position no scrollbar can ever reach (a known
+        // flexbox-centering-overflow trap), which read as "the left side is cut off
+        // and unreachable." Left-aligning instead makes 100% of a wide page
+        // reachable by scrolling right, matching how the PDF viewer already scales
+        // to always stay fully visible. Its `padding: 30px` (on top of this
+        // container's own p-3/md:p-6) doubled up the empty framing above/below the
+        // page into a visible gray/black band, so that's zeroed out here too.
+        className={`docx-preview-container max-w-full shadow-lg [&_.docx-wrapper]:!bg-transparent [&_.docx-wrapper]:!items-start [&_.docx-wrapper]:!p-0 [&_.docx]:!bg-white [&_.docx]:!shadow-none ${status === 'ready' ? '' : 'hidden'}`}
       />
     </div>
   );
