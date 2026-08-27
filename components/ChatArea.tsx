@@ -19,6 +19,7 @@ import { LoadingMark } from './LoadingMark';
 import { hasBootRevealPlayed, markBootRevealPlayed } from '@/lib/bootReveal';
 import { ShareChatModal } from './ShareChatModal';
 import { GeneratedFilesPanel } from './GeneratedFilesPanel';
+import { getFileIconSrc } from '@/lib/fileIcons';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -379,9 +380,10 @@ export function ChatArea({
                   />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-[#1a1a1a] px-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-500">
-                      {file.display_name.split('.').pop()?.slice(0, 4) || 'DOC'}
-                    </span>
+                    <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/60 dark:bg-black/20 mb-0.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={getFileIconSrc(file.display_name)} alt="" className="w-5 h-5" />
+                    </div>
                     <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 w-full text-center truncate px-1">
                       {file.display_name}
                     </span>
