@@ -71,21 +71,9 @@ function AttachmentThumbnail({
   onAttachmentClick?: (f: FileAttachment) => void;
 }) {
   const isImage = (file.mime_type || '').startsWith('image/');
-  const ext = file.display_name.split('.').pop()?.toLowerCase() || 'file';
   const imgSrc = usePresignedUrl(file); // null while loading
   const hasPreview = !!(imgSrc || file.s3_key);
-
-  const iconColors: Record<string, string> = {
-    pdf:  'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
-    doc:  'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-    docx: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-    txt:  'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
-    csv:  'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
-    md:   'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-    rtf:  'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
-    html: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
-  };
-  const iconColor = iconColors[ext] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+  const iconSrc = getFileIconSrc(file.display_name);
 
   // A failed or still-uploading attachment used to render exactly like a healthy one,
   // so the chat showed a document the model had never received.
@@ -140,11 +128,12 @@ function AttachmentThumbnail({
           </div>
         </>
       ) : (
-        <div className={`w-full h-full flex flex-col items-center justify-center gap-1 ${iconColor} px-1`}>
+        <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-white/5 px-1">
           <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/60 dark:bg-black/20 mb-0.5">
-            <span className="text-[11px] font-extrabold uppercase tracking-wide">{ext.slice(0, 4)}</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={iconSrc} alt="" className="w-5 h-5" />
           </div>
-          <span className="text-[8px] font-medium w-full text-center truncate px-1 opacity-80 leading-tight">{file.display_name}</span>
+          <span className="text-[8px] font-medium w-full text-center truncate px-1 text-slate-600 dark:text-slate-300 leading-tight">{file.display_name}</span>
         </div>
       )}
     </button>
