@@ -117,7 +117,18 @@
       "web_search_toggle_off": "Turn on web search so {chatbot_name} can look up up-to-date information.",
       "web_search_guest_disabled": "Sign in to enable web search.",
       "from_the_web": "From the web",
-      "corpus_sources_label": "From our legal database"
+      "corpus_sources_label": "From our legal database",
+      "tone_menu": "Response tone",
+      "tone_default": "Default",
+      "tone_default_desc": "The usual balanced tone",
+      "tone_concise": "Concise",
+      "tone_concise_desc": "Short, to-the-point answers",
+      "tone_learning": "Learning",
+      "tone_learning_desc": "Explains the reasoning behind rules",
+      "tone_explanatory": "Explanatory",
+      "tone_explanatory_desc": "Full coverage — rule, exceptions, procedure",
+      "tone_conversational": "Conversational",
+      "tone_conversational_desc": "Like talking it through with a colleague"
     },
     "sidebar": {
       "new_consultation": "New chat",
@@ -349,7 +360,18 @@
       "web_search_toggle_off": "{chatbot_name} eng so'nggi ma'lumotlarni topishi uchun veb qidiruvni yoqing.",
       "web_search_guest_disabled": "Veb qidiruvni yoqish uchun tizimga kiring.",
       "from_the_web": "Internetdan",
-      "corpus_sources_label": "Huquqiy bazamizdan"
+      "corpus_sources_label": "Huquqiy bazamizdan",
+      "tone_menu": "Javob ohangi",
+      "tone_default": "Standart",
+      "tone_default_desc": "Odatdagi muvozanatli ohang",
+      "tone_concise": "Qisqa",
+      "tone_concise_desc": "Qisqa, aniq javoblar",
+      "tone_learning": "O'rganish",
+      "tone_learning_desc": "Qoida ortidagi mantiqni tushuntiradi",
+      "tone_explanatory": "Batafsil",
+      "tone_explanatory_desc": "To'liq qamrov — qoida, istisno, tartib",
+      "tone_conversational": "Erkin suhbat",
+      "tone_conversational_desc": "Hamkasb bilan suhbatdek"
     },
     "sidebar": {
       "new_consultation": "Yangi chat",
@@ -581,7 +603,18 @@
       "web_search_toggle_off": "Включите веб-поиск, чтобы {chatbot_name} мог находить актуальную информацию.",
       "web_search_guest_disabled": "Войдите в систему, чтобы включить веб-поиск.",
       "from_the_web": "Из интернета",
-      "corpus_sources_label": "Из нашей базы законов"
+      "corpus_sources_label": "Из нашей базы законов",
+      "tone_menu": "Тон ответа",
+      "tone_default": "По умолчанию",
+      "tone_default_desc": "Сбалансированный тон, как обычно",
+      "tone_concise": "Кратко",
+      "tone_concise_desc": "Короткие, по делу ответы",
+      "tone_learning": "Обучение",
+      "tone_learning_desc": "Объясняет логику и суть правил",
+      "tone_explanatory": "Подробно",
+      "tone_explanatory_desc": "Полный охват — правила, исключения, порядок",
+      "tone_conversational": "Непринуждённо",
+      "tone_conversational_desc": "Как разговор с коллегой"
     },
     "sidebar": {
       "new_consultation": "Новый чат",

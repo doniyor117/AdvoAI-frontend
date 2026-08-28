@@ -73,12 +73,31 @@ function AppContent() {
     setQuotedText,
     useWebSearch,
     setUseWebSearch,
+    tone,
+    setTone,
     regenerateMessage,
     setActiveVariant,
     editMessage,
     reportMessage,
     fetchVariantInfo,
   } = useChatManager();
+
+  const hasProcessedPromptRef = useRef(false);
+
+  useEffect(() => {
+    if (!isHydrated || hasProcessedPromptRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const prompt = params.get('prompt');
+    if (prompt) {
+      hasProcessedPromptRef.current = true;
+      // We want to simulate the user typing and sending
+      handleSendMessage(prompt);
+      // Remove it from URL to avoid re-sending on reload
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('prompt');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [isHydrated, handleSendMessage]);
 
   const { settings } = usePublicSettings();
   const notification = settings?.global_notification;
@@ -154,6 +173,8 @@ function AppContent() {
           sendBlockedReason={sendBlockedReason}
           useWebSearch={useWebSearch}
           setUseWebSearch={setUseWebSearch}
+          tone={tone}
+          setTone={setTone}
           regenerateMessage={regenerateMessage}
           setActiveVariant={setActiveVariant}
           editMessage={editMessage}

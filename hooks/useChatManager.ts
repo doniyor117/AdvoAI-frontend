@@ -66,6 +66,10 @@ function serializeMessages(msgs: Message[]): Message[] {
  *  `chat.status_*` locale keys in MessageBubble. */
 export type StreamStage = 'thinking' | 'searching_corpus' | 'searching_web' | 'drafting';
 
+// 'default' means "no override" client-side and is never sent to the backend —
+// see sendToBackend, which omits the `tone` field entirely for it.
+export type Tone = 'default' | 'concise' | 'learning' | 'explanatory' | 'conversational';
+
 export type Message = {
   id: string;
   role: 'user' | 'assistant';
@@ -143,6 +147,19 @@ export function useChatManager(chatId?: string) {
     },
     [setWebSearchEnabled],
   );
+  // Response tone (Tools menu) — a lightweight per-browser preference, not synced
+  // across devices like web search: unlike the router's web-search decision, tone
+  // is a pure style choice with no correctness implication, so localStorage-only
+  // (matching the language preference pattern) is enough and avoids a schema change.
+  const [tone, setToneState] = useState<Tone>('default');
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('advoai_tone') : null;
+    if (saved) setToneState(saved as Tone);
+  }, []);
+  const setTone = useCallback((val: Tone) => {
+    setToneState(val);
+    if (typeof window !== 'undefined') localStorage.setItem('advoai_tone', val);
+  }, []);
   const [isInsightOpen, setIsInsightOpen] = useState(false);
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
   // Every citation from the SAME answer as activeCitation — lets the panel mark all
@@ -541,6 +558,9 @@ export function useChatManager(chatId?: string) {
       top_k: 5,
       use_web_search: useWebSearch,
     };
+    if (tone !== 'default') {
+      body.tone = tone;
+    }
 
     if (filesToAttach.length > 0) {
       const ready = filesToAttach.filter(isAttachmentReady);
@@ -605,7 +625,7 @@ export function useChatManager(chatId?: string) {
 
     const result = await consumeChatStream(res, assistantId, userClientMessageId);
     return { ...result, sources: result.citations };
-  }, [useWebSearch, consumeChatStream]);
+  }, [useWebSearch, tone, consumeChatStream]);
 
   /** Fetches the sibling variants of a message's chain — called lazily (never on
    *  every render) so a plain, never-redone message costs no extra request. */
@@ -634,7 +654,8 @@ export function useChatManager(chatId?: string) {
       ? { ...m, isStreaming: true, statusLabel: 'thinking', text: '', citations: [], attachments: [] }
       : m));
     try {
-      const res = await authFetch(`/api/sessions/${sessionId}/messages/${assistantMessageId}/regenerate`, {
+      const toneQuery = tone !== 'default' ? `?tone=${encodeURIComponent(tone)}` : '';
+      const res = await authFetch(`/api/sessions/${sessionId}/messages/${assistantMessageId}/regenerate${toneQuery}`, {
         method: 'POST',
       });
       const result = await consumeChatStream(res, assistantMessageId);
@@ -656,7 +677,7 @@ export function useChatManager(chatId?: string) {
         ? { ...m, isStreaming: false, statusLabel: null, isError: true, text: `⚠️ ${(err as Error).message || 'Could not redo this reply.'}` }
         : m));
     }
-  }, [isAuthenticated, sessionId, consumeChatStream]);
+  }, [isAuthenticated, sessionId, consumeChatStream, tone]);
 
   /** Switches which variant in a chain is shown (the ◀▶ switcher) — no
    *  generation, just an activation flip. */
@@ -699,7 +720,7 @@ export function useChatManager(chatId?: string) {
       const res = await authFetch(`/api/sessions/${sessionId}/messages/${userMessageId}/edit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: newText }),
+        body: JSON.stringify({ text: newText, ...(tone !== 'default' ? { tone } : {}) }),
       });
       return await consumeChatStream(res, assistantMessageId, userMessageId);
     } catch (err) {
@@ -708,7 +729,7 @@ export function useChatManager(chatId?: string) {
         ? { ...m, isStreaming: false, statusLabel: null, isError: true, text: `⚠️ ${(err as Error).message || 'Could not save this edit.'}` }
         : m));
     }
-  }, [isAuthenticated, sessionId, consumeChatStream]);
+  }, [isAuthenticated, sessionId, consumeChatStream, tone]);
 
   /** Report legal issue — authenticated-only, matching the backend gate. */
   const reportMessage = useCallback(async (messageId: string, reason?: string) => {
@@ -1148,6 +1169,8 @@ function getFileValidationError(file: File): string | null {
     setInputValue,
     useWebSearch,
     setUseWebSearch,
+    tone,
+    setTone,
     attachments,
     uploadFile,
     removeAttachment,

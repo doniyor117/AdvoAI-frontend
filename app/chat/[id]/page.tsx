@@ -80,6 +80,8 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     setQuotedText,
     useWebSearch,
     setUseWebSearch,
+    tone,
+    setTone,
     regenerateMessage,
     setActiveVariant,
     editMessage,
@@ -134,6 +136,8 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           sendBlockedReason={sendBlockedReason}
           useWebSearch={useWebSearch}
           setUseWebSearch={setUseWebSearch}
+          tone={tone}
+          setTone={setTone}
           regenerateMessage={regenerateMessage}
           setActiveVariant={setActiveVariant}
           editMessage={editMessage}

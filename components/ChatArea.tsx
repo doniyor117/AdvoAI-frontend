@@ -2,11 +2,11 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft, Quote, Globe, Plus, Share2 } from 'lucide-react';
+import { Send, Paperclip, Scale, Menu, PanelLeftOpen, ArrowDown, ArrowUp, FileText, TrendingUp, Key, ClipboardList, HelpCircle, Calculator, ChevronDown, Star, Edit2, FolderPlus, Trash2, X, Image as ImageIcon, CornerDownLeft, Quote, Globe, Plus, Share2, SlidersHorizontal, Check } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageBubble } from './MessageBubble';
-import { Message, Citation, FileAttachment } from '@/hooks/useChatManager';
+import { Message, Citation, FileAttachment, Tone } from '@/hooks/useChatManager';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +14,10 @@ import { useSessions } from '@/hooks/useSessions';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { TextSelectionTooltip } from './TextSelectionTooltip';
 import { useRouter, useParams } from 'next/navigation';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from './ui/dropdown-menu';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
+} from './ui/dropdown-menu';
 import { LoadingMark } from './LoadingMark';
 import { hasBootRevealPlayed, markBootRevealPlayed } from '@/lib/bootReveal';
 import { ShareChatModal } from './ShareChatModal';
@@ -41,6 +44,8 @@ interface ChatAreaProps {
   sendBlockedReason?: string | null;
   useWebSearch?: boolean;
   setUseWebSearch?: (val: boolean) => void;
+  tone?: Tone;
+  setTone?: (val: Tone) => void;
   regenerateMessage?: (assistantMessageId: string) => void;
   setActiveVariant?: (currentMessageId: string, targetMessageId: string) => void;
   editMessage?: (userMessageId: string, newText: string, assistantMessageId: string) => void;
@@ -64,6 +69,14 @@ const itemVariants = {
   hidden: { opacity: 0, y: 15 },
   show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 24 } }
 };
+
+const TONE_OPTIONS: { value: Tone; labelKey: string; descKey: string }[] = [
+  { value: 'default', labelKey: 'chat.tone_default', descKey: 'chat.tone_default_desc' },
+  { value: 'concise', labelKey: 'chat.tone_concise', descKey: 'chat.tone_concise_desc' },
+  { value: 'learning', labelKey: 'chat.tone_learning', descKey: 'chat.tone_learning_desc' },
+  { value: 'explanatory', labelKey: 'chat.tone_explanatory', descKey: 'chat.tone_explanatory_desc' },
+  { value: 'conversational', labelKey: 'chat.tone_conversational', descKey: 'chat.tone_conversational_desc' },
+];
 
 const iconMap: Record<string, React.ElementType> = {
   FileText,
@@ -95,6 +108,8 @@ export function ChatArea({
   sendBlockedReason = null,
   useWebSearch = false,
   setUseWebSearch,
+  tone = 'default',
+  setTone,
   regenerateMessage,
   setActiveVariant,
   editMessage,
@@ -503,6 +518,33 @@ export function ChatArea({
                     />
                   </span>
                 </DropdownMenuItem>
+              )}
+
+              {setTone && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer focus:bg-slate-100 dark:focus:bg-white/5 focus:text-inherit data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-white/5">
+                    <SlidersHorizontal className="w-4.5 h-4.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                    <span className="text-sm text-slate-700 dark:text-slate-200 flex-1">{t('chat.tone_menu')}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-72 bg-white dark:bg-[#1C2128] border-black/5 dark:border-white/5 rounded-xl shadow-lg p-1">
+                    {TONE_OPTIONS.map(opt => (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        onSelect={() => setTone(opt.value)}
+                        className="flex items-start gap-3 px-3 py-2.5 rounded-lg text-left cursor-pointer focus:bg-slate-100 dark:focus:bg-white/5 focus:text-inherit"
+                        aria-pressed={tone === opt.value}
+                      >
+                        <span className="w-4 h-4 flex-shrink-0 mt-0.5">
+                          {tone === opt.value && <Check className="w-4 h-4 text-primary" />}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm text-slate-700 dark:text-slate-200">{t(opt.labelKey)}</span>
+                          <span className="block text-xs text-slate-400 dark:text-slate-500">{t(opt.descKey)}</span>
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
