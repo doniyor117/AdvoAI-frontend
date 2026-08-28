@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 import withSerwistInit from '@serwist/next';
 
 const nextConfig: NextConfig = {
+  basePath: '/hub',
   reactStrictMode: true,
   allowedDevOrigins: ['10.144.172.154'],
   eslint: {
