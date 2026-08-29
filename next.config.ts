@@ -7,12 +7,12 @@ const nextConfig: NextConfig = {
     const landingPageUrl = process.env.LANDING_PAGE_URL || "http://localhost:3001";
     return [
       {
-        source: "/hub",
-        destination: `${landingPageUrl}/hub`,
+        source: "/about",
+        destination: `${landingPageUrl}/about`,
       },
       {
-        source: "/hub/:path*",
-        destination: `${landingPageUrl}/hub/:path*`,
+        source: "/about/:path*",
+        destination: `${landingPageUrl}/about/:path*`,
       },
     ];
   },
