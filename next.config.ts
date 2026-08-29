@@ -2,8 +2,20 @@ import type { NextConfig } from 'next';
 import withSerwistInit from '@serwist/next';
 
 const nextConfig: NextConfig = {
-  basePath: '/hub',
   reactStrictMode: true,
+  async rewrites() {
+    const landingPageUrl = process.env.LANDING_PAGE_URL || "http://localhost:3001";
+    return [
+      {
+        source: "/hub",
+        destination: `${landingPageUrl}/hub`,
+      },
+      {
+        source: "/hub/:path*",
+        destination: `${landingPageUrl}/hub/:path*`,
+      },
+    ];
+  },
   allowedDevOrigins: ['10.144.172.154'],
   eslint: {
     ignoreDuringBuilds: false,
